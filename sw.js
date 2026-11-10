@@ -1,5 +1,5 @@
 // Guarda apenas a "casca" do aplicativo. Dados financeiros nunca ficam em cache aqui.
-const CACHE = "casca-v1";
+const CACHE = "casca-v2";
 const CASCA = ["/", "/styles.css", "/app.js", "/manifest.webmanifest", "/icon-180.png"];
 
 self.addEventListener("install", (e) => {
