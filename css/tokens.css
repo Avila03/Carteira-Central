@@ -1,0 +1,27 @@
+.cc-theme {
+  color-scheme: dark;
+  --cc-pattern: url("/assets/padrao.svg");
+  --cc-black: #080D0B;
+  --cc-dollar: #214E34;
+  --cc-currency: #A8C686;
+  --cc-ivory: #F0EBDD;
+  --cc-gold: #B69A60;
+  --cc-surface: #101C16;
+  --cc-surface-raised: #172A1E;
+  --cc-line: #405345;
+  --cc-muted: #B6C1B3;
+  --cc-danger: #F0AAA0;
+  --cc-focus: #D2E5B6;
+  --cc-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --cc-brand: Georgia, 'Times New Roman', serif;
+  --cc-radius: 18px;
+  --cc-radius-small: 12px;
+  --cc-gap: 16px;
+  --cc-touch: 44px;
+  background: var(--cc-black);
+  color: var(--cc-ivory);
+  font-family: var(--cc-body);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}

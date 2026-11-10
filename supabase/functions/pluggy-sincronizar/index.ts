@@ -206,7 +206,8 @@ Deno.serve(async (req: Request) => {
               categoria_id: atual?.categoria_editada ? atual.categoria_id
                 : (natureza === "pagamento_fatura" ? null : (atual?.categoria_id ?? sugerida)),
               categoria_banco: t.category ?? null,
-              situacao: t.status === "PENDING" ? "pendente" : (data > hoje ? "futuro" : "efetivado"),
+              // Parcela com data posterior a hoje é compromisso futuro, mesmo quando o banco a marca como pendente
+              situacao: data > hoje ? "futuro" : (t.status === "PENDING" ? "pendente" : "efetivado"),
               pluggy_bill_id: md.billId ?? null,
               fatura_id: md.billId ? faturaPorBill.get(md.billId) ?? null : null,
               parcela: md.installmentNumber ?? null,
