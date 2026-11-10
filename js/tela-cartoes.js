@@ -1,5 +1,6 @@
+import { nomeNoCartao, carimbo } from "./marca.js";
 import { estado, icone, dinheiro, dataBR, dataCurta, dataHoraBR, esc, hoje, titulo, secao, lista, linha, selo, BANCOS, logoBanco, registrar, conta, categoria, abrirFolha } from "./base.js";
-import { faturasPrevistas, cicloCartao } from "./calculos.js";
+import { faturasPrevistas, cicloCartao, somaDias } from "./calculos.js";
 import { linhaLancamento } from "./tela-mais.js";
 
 const BANDEIRA = { VISA: "VISA", MASTERCARD: "Mastercard", ELO: "elo", AMEX: "AMEX", HIPERCARD: "Hipercard" };
@@ -14,6 +15,7 @@ export function quadrado(c, f) {
     <div class="q-topo">${logoBanco(c.banco, { redondo: true, tam: 30 })}<span class="q-bandeira">${esc(bandeira)}</span></div>
     <strong class="q-nome">${esc(nomeCartao(c))}</strong>
     <div class="cc-uso" aria-hidden="true"><i style="width:${usado}%"></i></div>
+    <span class="q-titular" aria-hidden="true">${esc(nomeNoCartao())}</span>
     <div class="q-base"><span>Vence ${dataCurta(f.vencimento)}</span><strong>${dinheiro(f.total)}</strong></div>
   </a>`;
 }
@@ -22,10 +24,17 @@ export function plastico(c, f, { aberto = false } = {}) {
   return `<a class="cc-plastico" href="#/cartoes/${c.id}" style="background:linear-gradient(135deg, ${b.cor} 0%, ${b.cor2} 92%)" aria-label="${esc(c.nome)}, fatura ${dinheiro(f.total)}">
     <div class="cc-plastico-topo">${logoBanco(c.banco, { redondo: true, tam: 34 })}<strong>${esc(nomeCartao(c))}</strong><small>${esc(c.nivel || "")}</small></div>
     <div class="cc-plastico-meio"><span class="cc-chip-ouro" aria-hidden="true"></span><span class="cc-final">${c.final_numero ? "•••• " + esc(c.final_numero) : ""}</span></div>
+    <span class="cc-titular" aria-hidden="true">${esc(nomeNoCartao())}</span>
     <div class="cc-plastico-base"><div><span>Fatura aberta · vence ${dataCurta(f.vencimento)}</span><strong>${dinheiro(f.total)}</strong></div><span class="cc-bandeira">${esc(BANDEIRA[String(c.bandeira || "").toUpperCase()] || c.bandeira || "")}</span></div>
   </a>`;
 }
 
+// Fatura dada como paga: algum pagamento de fatura perto do vencimento (12 dias antes a 7 depois) com valor até 3% do total
+function faturaPaga(f) {
+  if (!f.total_centavos || f.total_centavos <= 0) return false;
+  const ini = somaDias(f.vencimento, -12), fim = somaDias(f.vencimento, 7);
+  return estado.d.lancamentos.some((l) => l.natureza === "pagamento_fatura" && l.data >= ini && l.data <= fim && Math.abs(Math.abs(l.valor_centavos) - f.total_centavos) <= f.total_centavos * 0.03);
+}
 export function telaCartoes(id) {
   const d = estado.d, h = hoje();
   const cartoes = d.contas.filter((c) => c.tipo === "cartao" && !c.arquivada);
@@ -77,7 +86,7 @@ export function telaCartoes(id) {
   ${secao("Compras desde o último fechamento")}
   ${lista(compras.map(linhaLancamento), "Nenhuma compra neste ciclo.")}
   ${secao("Faturas anteriores")}
-  ${lista(anteriores.map((x) => linha({ titulo: `Venceu ${dataBR(x.vencimento)}`, sub: `${x.fechamento ? `fechou ${dataBR(x.fechamento)}` : "fechamento não informado"}${x.minimo_centavos ? ` · mínimo ${dinheiro(x.minimo_centavos)}` : ""}`, valor: dinheiro(x.total_centavos), acao: "ver-fatura", attrs: `data-id="${x.id}"` })), "Nenhuma fatura recebida do banco.")}
+  ${lista(anteriores.map((x) => linha({ titulo: `Venceu ${dataBR(x.vencimento)}` + (faturaPaga(x) ? carimbo("Paga") : ""), sub: `${x.fechamento ? `fechou ${dataBR(x.fechamento)}` : "fechamento não informado"}${x.minimo_centavos ? ` · mínimo ${dinheiro(x.minimo_centavos)}` : ""}`, valor: dinheiro(x.total_centavos), acao: "ver-fatura", attrs: `data-id="${x.id}"` })), "Nenhuma fatura recebida do banco.")}
   ${outros.length ? secao("Outros cartões") + `<div class="cc-cartoes-grade">${outros.map((c) => quadrado(c, fats.get(c.id)[0])).join("")}</div>` : ""}
   </div></div>`;
 }

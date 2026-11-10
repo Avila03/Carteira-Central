@@ -1,4 +1,5 @@
 import { estado, icone, dinheiro, dataBR, dataCurta, dataHoraBR, mesCurto, esc, pct, hoje, titulo, secao, lista, linha, selo, logoBanco, logoCompromisso, registrar, conta, categoria } from "./base.js";
+import { nomeDono, saudacao, dataPorExtenso, microtexto } from "./marca.js";
 import { resumoInicio, indices, consumoDoMes, faturasPrevistas, agenda, somaMeses, somaDias, diffDias, ENTRADAS, parcelasComSaldo } from "./calculos.js";
 
 export function calcular() {
@@ -93,30 +94,30 @@ function gastoPorCartao(d, h) {
 export function telaInicio() {
   const d = estado.d;
   const { r, ix, h } = calcular();
-  const nome = (estado.sessao?.user?.user_metadata?.nome) || "";
+  const nome = nomeDono();
+  const serie = h.slice(0, 7).replace("-", "·");
   const dadosEm = r.consideradas.filter((c) => c.dados_em).map((c) => c.dados_em).sort()[0];
   const av = avisos(d, h);
   const proximos = proximosPagamentos(d, h, 5);
   const cartoes = d.contas.filter((c) => c.tipo === "cartao" && !c.arquivada);
   const cartaoFat = cartoes.map((c) => ({ c, f: faturasPrevistas(c, d.lancamentos, d.compromissos, d.baixas, h, 1)[0] }));
 
-  return `<p class="cc-eyebrow">Visão geral · ${new Intl.DateTimeFormat("pt-BR", { month: "long", timeZone: "America/Sao_Paulo" }).format(new Date())}</p>
-  <h1>${nome ? `Olá, ${esc(nome)}` : "Olá"}</h1>
+  return `<div class="cc-saudacao"><p>${dataPorExtenso()}</p><h1>${saudacao()}${nome ? `, ${esc(nome)}` : ""}</h1></div>
   ${av.map((a) => `<button type="button" class="cc-aviso ${a.tipo === "erro" ? "erro" : ""}" data-acao="ir" data-rota="${a.rota}">${icone(a.tipo === "erro" ? "triangle-alert" : "bell", 18)}<span>${a.texto}</span></button>`).join("")}
-  <button type="button" class="cc-hero" data-acao="ir" data-rota="composicao/saldo">
-    <span class="cc-hero-label">Saldo atual</span>
-    <strong class="cc-amount">${dinheiro(r.saldo)}</strong>
-    <span class="cc-small">${r.consideradas.length} conta(s) no cálculo${dadosEm ? ` · dados do banco de ${dataHoraBR(dadosEm)}` : ""}</span>
+  <button type="button" class="cc-cedula" data-acao="ir" data-rota="composicao/disponivel" aria-label="Disponível estimado: ${dinheiro(r.disponivel)}. Ver composição.">
+    <span class="cc-cedula-micro" aria-hidden="true">${microtexto(nome)}</span>
+    <span class="cc-cedula-topo"><span class="cc-cedula-rotulo">Disponível até ${r.semSalario ? "o fim do mês" : `o salário · ${dataCurta(r.horizonte)}`}</span><span class="cc-cedula-serie" aria-hidden="true">Nº ${serie}</span></span>
+    <strong class="cc-cedula-valor">${dinheiro(r.disponivel)}</strong>
+    <span class="cc-cedula-conta">saldo ${dinheiro(r.saldo)} − compromissos ${dinheiro(r.compromissos)}${r.reservas ? ` − reservas ${dinheiro(r.reservas)}` : ""}</span>
+    <img class="cc-cedula-marca" src="/assets/monograma.svg" alt="" aria-hidden="true">
+    <span class="cc-cedula-roseta" aria-hidden="true"></span>
   </button>
-  <div class="cc-grade2">
-    <button type="button" class="cc-stat" data-acao="ir" data-rota="composicao/compromissos"><span>Compromissos até ${dataCurta(r.horizonte)}</span><strong class="cc-num">${dinheiro(r.compromissos)}</strong><small class="cc-small">${r.compItens.length} item(ns)</small></button>
-    <button type="button" class="cc-stat cc-areceber" data-acao="ir" data-rota="composicao/receber"><span>A receber</span><strong class="cc-num">${dinheiro(r.aReceber)}</strong><small class="cc-small">Previsto, fora do disponível</small></button>
+  <div class="cc-grade3">
+    <button type="button" class="cc-stat" data-acao="ir" data-rota="composicao/saldo"><span>Saldo</span><strong class="cc-num">${dinheiro(r.saldo)}</strong><small class="cc-small">${r.consideradas.length} conta(s)</small></button>
+    <button type="button" class="cc-stat" data-acao="ir" data-rota="composicao/compromissos"><span>Compromissos</span><strong class="cc-num">${dinheiro(r.compromissos)}</strong><small class="cc-small">até ${dataCurta(r.horizonte)}</small></button>
+    <button type="button" class="cc-stat cc-areceber" data-acao="ir" data-rota="composicao/receber"><span>A receber</span><strong class="cc-num">${dinheiro(r.aReceber)}</strong><small class="cc-small">fora do disponível</small></button>
   </div>
-  <button type="button" class="cc-stat cc-available" style="margin-bottom:6px" data-acao="ir" data-rota="composicao/disponivel">
-    <span>Disponível estimado até ${r.semSalario ? "o fim do mês" : `o salário (${dataCurta(r.horizonte)})`}</span>
-    <strong class="cc-num" style="font-size:24px">${dinheiro(r.disponivel)}</strong>
-    <small class="cc-small">Estimativa · ${r.semSalario ? "cadastre o salário em Planejar para usar a data dele" : "saldo − compromissos − reservas"}</small>
-  </button>
+  <p class="cc-small" style="margin:-4px 0 4px">${dadosEm ? `Dados do banco de ${dataHoraBR(dadosEm)}` : ""}${r.semSalario ? `${dadosEm ? " · " : ""}cadastre o salário em Planejar para usar a data dele` : ""}</p>
   <button type="button" class="cc-text-button" data-acao="ir" data-rota="composicao/disponivel">Entender meu disponível ${icone("chevron-right", 15)}</button>
 
   ${secao("Índices")}

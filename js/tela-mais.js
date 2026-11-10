@@ -1,3 +1,4 @@
+import { carimbo, carimbar, nomeDono, nomeNoCartao } from "./marca.js";
 import { sb, estado, icone, dinheiro, dataBR, dataCurta, dataHoraBR, diaExtenso, mesLongo, esc, pct, hoje, titulo, secao, lista, linha, selo, segmento, campo, entradaValor, opcoes, erroForm, paraCentavos, abrirFolha, fecharFolha, avisar, falhou, confirmarDuplo, registrar, conta, categoria, pessoa, BANCOS, logoBanco, logoCompromisso, logo, dominioServico, gravarLocal } from "./base.js";
 import { consumoDoMes, caixaDoMes, sugerirAssinaturas, sugerirDuplicidades, sugerirTransferencias, parcelasComSaldo, dividirIgual, dividirPercentual, gerarParcelas, somaMeses, somaDias, agenda, mesDe, normalizarDescricao } from "./calculos.js";
 import { inserir, inserirVarios, atualizar, apagar, decidir, salvarPrefs } from "./dados.js";
@@ -227,7 +228,7 @@ export function telaPessoa(id, q = {}) {
     const r = restante(a), pago = a.valor_total_centavos - r;
     const prox = ps.find((x) => x.restante_centavos > 0);
     return `<div class="cc-card" style="padding:16px">
-      <div class="cc-card-top"><span>${a.direcao === "me_deve" ? "Me deve" : "Eu devo"}${a.racha_id ? " · racha" : ""}</span>${a.situacao === "quitado" ? selo("Quitado", "ok") : prox && prox.vencimento < h ? selo(a.direcao === "me_deve" ? "Atrasado" : "Vencido", "vencido") : selo(a.direcao === "me_deve" ? "A receber" : "A pagar", "previsto")}</div>
+      <div class="cc-card-top"><span>${a.direcao === "me_deve" ? "Me deve" : "Eu devo"}${a.racha_id ? " · racha" : ""}</span>${a.situacao === "quitado" ? carimbo("Quitado") : prox && prox.vencimento < h ? selo(a.direcao === "me_deve" ? "Atrasado" : "Vencido", "vencido") : selo(a.direcao === "me_deve" ? "A receber" : "A pagar", "previsto")}</div>
       <p style="margin-top:10px;font-weight:600">${esc(a.descricao)}</p>
       <strong class="cc-num" style="font-size:24px;margin:6px 0 2px">${dinheiro(r)}</strong><span class="cc-small">restante de ${dinheiro(a.valor_total_centavos)} · pago ${dinheiro(pago)}</span>
       <div class="cc-progresso"><i style="width:${(pago / a.valor_total_centavos) * 100}%"></i></div>
@@ -319,7 +320,7 @@ function formPagamento(a) {
     if (v > r) return erroForm(form, `O valor passa do restante (${dinheiro(r)}).`);
     if (!(await inserir("acerto_pagamentos", { acerto_id: a.id, data: form.data.value || hoje(), valor_centavos: v, observacoes: form.observacoes.value.trim() || null }))) return;
     if (v === r) await atualizar("acertos", a.id, { situacao: "quitado" });
-    fecharFolha(); avisar(v === r ? "Quitado." : "Pagamento parcial registrado."); await recarregar();
+    fecharFolha(); if (v === r) carimbar("Quitado"); else avisar("Pagamento parcial registrado."); await recarregar();
   });
 }
 function detalheAcerto(a) {
@@ -499,8 +500,11 @@ export function telaRelatorios(q) {
   const pessoasMe = d.acertos.filter((a) => a.direcao === "me_deve" && a.situacao === "aberto").reduce((s, a) => s + restante(a), 0);
   const pessoasDevo = d.acertos.filter((a) => a.direcao === "eu_devo" && a.situacao === "aberto").reduce((s, a) => s + restante(a), 0);
   const cartoes = d.contas.filter((x) => x.tipo === "cartao").reduce((s, x) => s + Math.max(0, -x.saldo_centavos), 0);
+  const nome = nomeDono();
   return `${titulo("Relatórios", "Resumo do mês", "mais")}
   <div class="cc-mes-nav"><button type="button" class="cc-icon-button" data-acao="ir" data-rota="relatorios?mes=${ant}" aria-label="Mês anterior">${icone("chevron-left")}</button><strong>${mesLongo(mes)}</strong><button type="button" class="cc-icon-button" data-acao="ir" data-rota="relatorios?mes=${somaMeses(`${mes}-01`, 1).slice(0, 7)}" aria-label="Próximo mês">${icone("chevron-right")}</button></div>
+  <article class="cc-papel">
+  <header class="cc-papel-topo"><img src="/assets/monograma-escuro.svg" alt="" width="34" height="34"><div><p>Carteira Central · extrato pessoal</p><h2>${mesLongo(mes).replace(/^./, (x) => x.toUpperCase())}</h2></div><span class="cc-papel-serie">Nº ${mes.replace("-", "·")}</span></header>
   <div class="cc-duas"><div>
   ${secao("Consumo", "<span>o que você gastou</span>")}
   <div class="cc-grade2"><div class="cc-stat"><span>Receitas</span><strong class="cc-num cc-pos">${dinheiro(c.entradas)}</strong></div><div class="cc-stat"><span>Despesas</span><strong class="cc-num">${dinheiro(c.saidas)}</strong></div></div>
@@ -515,6 +519,10 @@ export function telaRelatorios(q) {
   <div class="cc-stat" style="margin-bottom:12px"><span>Faturas de cartão pagas</span><strong class="cc-num">${dinheiro(cx.faturasPagas)}</strong><small class="cc-small">No caixa, a fatura é a saída; no consumo, contam as compras.</small></div>
   ${secao("Hoje")}
   ${lista([linha({ titulo: "Reservado em metas e reservas", valor: dinheiro(reservado) }), linha({ titulo: "Devo nos cartões", valor: dinheiro(cartoes) }), linha({ titulo: "Devo a pessoas", valor: dinheiro(pessoasDevo) }), linha({ titulo: "Pessoas me devem", valor: dinheiro(pessoasMe) })])}
+  </div></div>
+  <footer class="cc-papel-assinatura"><span class="cc-assinatura">${esc(nome || "Titular")}</span><span class="cc-papel-linha"></span><small>${esc(nomeNoCartao() || "Titular")} · emitido em ${dataBR(hoje())}</small></footer>
+  </article>
+  <div><div>
   <div class="cc-acoes"><button type="button" class="cc-secundario" data-acao="exportar" data-mes="${mes}">${icone("upload", 18)}Exportar lançamentos do mês (CSV)</button><button type="button" class="cc-secundario" data-acao="exportar-tudo">${icone("upload", 18)}Exportar todos os registros (CSV)</button></div>
   </div></div>`;
 }
@@ -575,6 +583,10 @@ export function telaConfiguracoes() {
   const av = d.prefs.avisos || {};
   const cats = (t) => lista(d.categorias.filter((c) => c.tipo === t).map((c) => linha({ esquerda: `<span class="cc-ic" style="color:${esc(c.cor || "var(--cc-currency)")}">${icone((c.icone || "circle-ellipsis").replace("repeat-2", "repeat2").replace("undo-2", "undo2"), 18)}</span>`, titulo: esc(c.nome), acao: "editar-categoria", attrs: `data-id="${c.id}"` })));
   return `${titulo("Preferências", "Configurações", "mais")}
+  ${secao("Seu nome")}
+  <form id="form-nome" novalidate>
+  <div class="cc-grade-campos">${campo("Na saudação e no extrato", `<input name="nome" maxlength="40" value="${esc(d.prefs.nome || "")}" autocomplete="given-name">`)}${campo("Impresso nos cartões", `<input name="nome_cartao" maxlength="26" value="${esc(d.prefs.nome_cartao || "")}" style="text-transform:uppercase" autocomplete="off">`)}</div>
+  <button class="cc-secundario" type="submit">Salvar nome</button></form>
   ${secao("Tema")}
   ${segmento("tema", [["escuro", "Escuro"], ["claro", "Claro"], ["sistema", "Do aparelho"]], d.prefs.tema || "escuro")}
   ${secao("Privacidade")}
@@ -709,6 +721,12 @@ registrar({
   "sair": async () => { await sb.auth.signOut(); },
 });
 
+document.addEventListener("submit", async (e) => {
+  if (e.target.id !== "form-nome") return;
+  e.preventDefault();
+  const f = e.target;
+  if (await salvarPrefs({ nome: f.nome.value.trim() || null, nome_cartao: f.nome_cartao.value.trim().toUpperCase() || null })) { avisar("Nome salvo."); recarregar(); }
+});
 // Preferências tocadas direto nos controles da tela de configurações
 document.addEventListener("change", async (e) => {
   const t = e.target;

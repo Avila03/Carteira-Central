@@ -1,3 +1,4 @@
+import { carimbar } from "./marca.js";
 import { estado, icone, dinheiro, dataBR, dataCurta, mesCurto, mesLongo, esc, hoje, titulo, secao, lista, linha, selo, segmento, campo, entradaValor, opcoes, erroForm, paraCentavos, abrirFolha, fecharFolha, avisar, confirmarDuplo, registrar, conta, categoria, logoCompromisso, logoBanco, dominioServico, pct } from "./base.js";
 import { agenda, ocorrencias, somaDias, somaMeses, diasNoMes, faturasPrevistas, parcelasComSaldo, simularCompra, compromissoDaSimulacao, ENTRADAS, resumoInicio, diffDias } from "./calculos.js";
 import { inserir, inserirVarios, atualizar, apagar } from "./dados.js";
@@ -251,7 +252,7 @@ function formBaixa(c, ref) {
     const ok = b ? await atualizar("compromisso_baixas", b.id, reg) : await inserir("compromisso_baixas", reg);
     if (!ok) return;
     if (reg.lancamento_id) await atualizar("lancamentos", reg.lancamento_id, { compromisso_id: c.id });
-    fecharFolha(); avisar("Ocorrência atualizada."); await recarregar();
+    fecharFolha(); if (reg.situacao === "pago" || reg.situacao === "recebido") carimbar(reg.situacao === "pago" ? "Pago" : "Recebido"); else avisar("Ocorrência atualizada."); await recarregar();
   });
 }
 

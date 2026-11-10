@@ -1,3 +1,4 @@
+import { ilustracaoPara } from "./marca.js";
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 import { icone } from "./icones.js";
 import { hojeISO } from "./calculos.js";
@@ -148,7 +149,7 @@ export function erroForm(form, msg) {
 // ---------- pedaços de interface ----------
 export const titulo = (eyebrow, h1, voltar) => `${voltar ? `<button type="button" class="cc-voltar" data-acao="ir" data-rota="${voltar}">${icone("chevron-left", 18)}Voltar</button>` : ""}<p class="cc-eyebrow">${esc(eyebrow)}</p><h1 class="cc-titulo">${esc(h1)}</h1>`;
 export const secao = (h2, extra = "") => `<div class="cc-heading"><h2>${esc(h2)}</h2>${extra}</div>`;
-export const vazio = (t) => `<p class="cc-vazio">${t}</p>`;
+export const vazio = (t) => `<div class="cc-vazio">${ilustracaoPara(t)}<p>${t}</p></div>`;
 export const selo = (t, tipo = "") => `<span class="cc-selo ${tipo}">${esc(t)}</span>`;
 export function linha({ esquerda = "", titulo: t, sub = "", valor = "", valorSub = "", acao = "", attrs = "", classeValor = "" }) {
   const tag = acao ? "button" : "div";

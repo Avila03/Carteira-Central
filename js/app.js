@@ -1,9 +1,10 @@
 import { sb, estado, icone, esc, acoes, gravarLocal, fecharFolha, avisar, erroForm, campo } from "./base.js";
 import { carregarTudo, salvarPrefs } from "./dados.js";
+import { ICONES_NAV, moedaCC } from "./marca.js";
 import { telaInicio, telaComposicao } from "./tela-inicio.js";
 import { telaCartoes } from "./tela-cartoes.js";
 import { telaPlanejar, telaCompromisso, simularEnvio } from "./tela-planejar.js";
-import { telaMais, telaContas, telaConta, telaAcertos, telaPessoa, telaAssinaturas, telaLancamentos, telaRevisao, telaRelatorios, telaConexoes, telaConfiguracoes, abrirBusca, ITENS_MAIS } from "./tela-mais.js";
+import { buscarDados, telaMais, telaContas, telaConta, telaAcertos, telaPessoa, telaAssinaturas, telaLancamentos, telaRevisao, telaRelatorios, telaConexoes, telaConfiguracoes, abrirBusca, ITENS_MAIS } from "./tela-mais.js";
 
 const app = document.getElementById("app");
 
@@ -48,7 +49,7 @@ function cabecalho() {
     </div></header>`;
 }
 function navegacao(grupo) {
-  return `<nav class="cc-nav" aria-label="Navegação principal">${NAV.map(([r, t, ic]) => `<button type="button" data-acao="ir" data-rota="${r}" ${grupo === r ? 'aria-current="page"' : ""}>${icone(ic, 22)}<span>${t}</span></button>`).join("")}</nav>`;
+  return `<nav class="cc-nav" aria-label="Navegação principal">${NAV.map(([r, t, ic]) => `<button type="button" data-acao="ir" data-rota="${r}" ${grupo === r ? 'aria-current="page"' : ""}>${ICONES_NAV[r] || icone(ic, 22)}<span>${t}</span></button>`).join("")}</nav>`;
 }
 function lateral(tela) {
   const link = (r, t, ic) => `<a href="#/${r}" ${tela === r || (GRUPO[tela] === r && r !== "mais") ? 'aria-current="page"' : ""}>${icone(ic, 19)}${t}</a>`;
@@ -72,8 +73,57 @@ export function desenhar() {
   desenhando = true;
   app.innerHTML = `${lateral(rota.tela)}<div class="cc-coluna">${cabecalho()}<main class="cc-main" id="conteudo">${corpo}</main></div>${navegacao(grupo)}`;
   desenhando = false;
+  if (estado.ocultar) gravarOcultos(app);
+  fecharAbertura();
   document.title = `${document.querySelector(".cc-main h1")?.textContent || "Início"} · Carteira Central`;
 }
+
+// Valores ocultos viram faixas de gravura (o texto "R$ ••••" vira um elemento visual)
+function gravarOcultos(raiz) {
+  const w = document.createTreeWalker(raiz, NodeFilter.SHOW_TEXT, { acceptNode: (n) => (n.nodeValue.includes("R$ ••••") ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT) });
+  const nos = []; while (w.nextNode()) nos.push(w.currentNode);
+  for (const n of nos) {
+    const frag = document.createDocumentFragment();
+    n.nodeValue.split(/(R\$ ••••)/).forEach((parte) => {
+      if (parte === "R$ ••••") { const s = document.createElement("span"); s.className = "cc-oculto"; s.setAttribute("role", "img"); s.setAttribute("aria-label", "valor oculto"); frag.appendChild(s); }
+      else if (parte) frag.appendChild(document.createTextNode(parte));
+    });
+    n.parentNode.replaceChild(frag, n);
+  }
+}
+// Tela de abertura: some quando a primeira tela fica pronta
+function fecharAbertura() {
+  const a = document.getElementById("abertura");
+  if (!a || a.dataset.saindo) return;
+  a.dataset.saindo = "1";
+  const esperar = Math.max(0, 650 - (performance.now() - (window.__inicio || 0)));
+  setTimeout(() => { a.classList.add("sai"); setTimeout(() => a.remove(), 450); }, esperar);
+}
+
+// Puxar para atualizar: a moeda CC gira enquanto busca os dados
+(() => {
+  let y0 = null, dy = 0, ativo = false, ocupado = false;
+  const ind = document.createElement("div");
+  ind.className = "cc-puxar"; ind.innerHTML = moedaCC(40); ind.setAttribute("aria-hidden", "true");
+  document.body.appendChild(ind);
+  const LIMIAR = 72;
+  addEventListener("touchstart", (e) => { if (ocupado || scrollY > 0 || document.querySelector(".cc-folha-fundo, .cc-folha") || !estado.d) return; y0 = e.touches[0].clientY; dy = 0; ativo = false; }, { passive: true });
+  addEventListener("touchmove", (e) => {
+    if (y0 === null) return;
+    dy = e.touches[0].clientY - y0;
+    if (dy <= 0 || scrollY > 0) { ind.style.cssText = ""; ativo = false; return; }
+    ativo = true;
+    const d = Math.min(110, dy * 0.55);
+    ind.style.transform = `translate(-50%, ${d}px) rotateY(${dy * 2.2}deg)`; ind.style.opacity = String(Math.min(1, d / LIMIAR));
+    ind.classList.toggle("pronto", d >= LIMIAR);
+  }, { passive: true });
+  addEventListener("touchend", async () => {
+    if (y0 === null) return; y0 = null;
+    if (!ativo || Math.min(110, dy * 0.55) < LIMIAR) { ind.style.cssText = ""; ind.classList.remove("pronto"); return; }
+    ocupado = true; ind.classList.add("girando"); ind.style.transform = "translate(-50%, 72px)"; ind.style.opacity = "1";
+    try { await recarregar(); buscarDados(); } finally { setTimeout(() => { ind.classList.remove("girando", "pronto"); ind.style.cssText = ""; ocupado = false; }, 500); }
+  });
+})();
 
 export async function recarregar() {
   const y = scrollY;
@@ -82,6 +132,7 @@ export async function recarregar() {
 
 // ---------- entrada (login privado) ----------
 function entrada(modo = "entrar") {
+  fecharAbertura();
   const novo = modo === "criar";
   app.innerHTML = `<main class="cc-entrada">
     <img class="cc-marca" src="/assets/marca-horizontal.svg" alt="Carteira Central">
