@@ -29,7 +29,7 @@ const linhaEvento = (e) => linha({ esquerda: e.esquerda, titulo: esc(e.titulo), 
 export function telaPlanejar(q) {
   const aba = q.aba || "calendario";
   const corpo = { calendario: abaCalendario, compromissos: abaCompromissos, objetivos: abaObjetivos, simular: abaSimular }[aba]?.(q) || "";
-  return `${titulo("Planejamento", "Planejar")}
+  return `${titulo("Planejamento", "Planejar", "mais")}
   ${segmento("aba-planejar", [["calendario", "Calendário"], ["compromissos", "Compromissos"], ["objetivos", "Objetivos"], ["simular", "Simular"]], aba)}
   ${corpo}`;
 }

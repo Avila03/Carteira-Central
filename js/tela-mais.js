@@ -8,10 +8,10 @@ const SITUACAO = { efetivado: "", pendente: "Pendente no banco", futuro: "Parcel
 
 // ---------- Mais ----------
 export const ITENS_MAIS = [
+  ["planejar", "Planejar", "calendar-days", "Calendário, salário, fixos, metas e simulações"],
   ["contas", "Contas", "landmark", "Contas bancárias e investimentos"],
   ["acertos", "Acertos", "users", "Rachas, quem te deve e o que você deve a pessoas"],
   ["assinaturas", "Assinaturas", "repeat2", "Serviços recorrentes e sugestões"],
-  ["lancamentos", "Lançamentos", "list", "Tudo que entrou e saiu, com filtros"],
   ["revisao", "Revisão", "shield-check", "Duplicidades, transferências e categorias"],
   ["relatorios", "Relatórios", "chart-column", "Resumo do mês, consumo e fluxo de caixa"],
   ["conexoes", "Conexões", "link2", "Meu Pluggy: estado e data dos dados"],
@@ -19,18 +19,20 @@ export const ITENS_MAIS = [
 ];
 export function telaMais() {
   const d = estado.d;
-  const pend = sugerirDuplicidades(d).length + sugerirTransferencias(d).length + d.lancamentos.filter((l) => !l.categoria_id && l.natureza === "normal" && l.situacao !== "futuro").length;
+  const pend = d.decisoes.filter((x) => x.decisao === "verificar").length + sugerirDuplicidades(d).length + sugerirTransferencias(d).length + d.lancamentos.filter((l) => !l.categoria_id && l.natureza === "normal" && l.situacao !== "futuro").length;
   return `${titulo("Mais opções", "Mais")}
   ${lista(ITENS_MAIS.map(([r, t, ic, sub]) => linha({ esquerda: `<span class="cc-ic">${icone(ic, 18)}</span>`, titulo: t + (r === "revisao" && pend ? selo(String(pend), "previsto") : ""), sub, acao: "ir", attrs: `data-rota="${r}"` })))}
   <p class="cc-account-line">Carteira Central · uso pessoal e privado</p>`;
 }
 
 // ---------- Lançamentos ----------
+const marcaRevisao = (id) => estado.d.decisoes.find((x) => x.chave === "rev:" + id)?.decisao;
 export function linhaLancamento(l) {
   const c = conta(l.conta_id), k = categoria(l.categoria_id);
+  const verificar = marcaRevisao(l.id) === "verificar";
   const rot = l.natureza === "pagamento_fatura" ? "Pagamento de fatura" : l.natureza === "transferencia_propria" ? "Transferência entre minhas contas" : (k?.nome || "Sem categoria");
   const extra = [l.total_parcelas > 1 ? `${l.parcela}/${l.total_parcelas}` : "", SITUACAO[l.situacao] || "", ORIGEM[l.origem]].filter(Boolean);
-  return linha({ esquerda: logoBanco(c?.banco), titulo: esc(l.descricao), sub: `${dataCurta(l.data)} · ${esc(rot)} · ${esc(c?.nome || "")}${extra.length ? " · " + extra.join(" · ") : ""}${(l.etiquetas || []).map((e) => " #" + esc(e)).join("")}`, valor: dinheiro(l.valor_centavos, { sinal: true }), classeValor: l.valor_centavos > 0 ? "cc-pos" : "", acao: "editar-lancamento", attrs: `data-id="${l.id}"` });
+  return linha({ esquerda: logoBanco(c?.banco), titulo: esc(l.descricao) + (verificar ? selo("Verificar", "vencido") : ""), sub: `${dataCurta(l.data)} · ${esc(rot)} · ${esc(c?.nome || "")}${extra.length ? " · " + extra.join(" · ") : ""}${(l.etiquetas || []).map((e) => " #" + esc(e)).join("")}`, valor: dinheiro(l.valor_centavos, { sinal: true }), classeValor: l.valor_centavos > 0 ? "cc-pos" : "", acao: "editar-lancamento", attrs: `data-id="${l.id}"` });
 }
 export function telaLancamentos(q) {
   const d = estado.d;
@@ -47,7 +49,7 @@ export function telaLancamentos(q) {
   const dias = [...new Set(ls.map((l) => l.data))];
   const etiquetas = [...new Set(d.lancamentos.flatMap((l) => l.etiquetas || []))].sort();
   const sel = (nome, itens, atual, rotulo) => `<select data-filtro="${nome}" aria-label="${rotulo}" style="min-height:44px;border-radius:12px;border:1px solid var(--cc-line);background:var(--cc-surface);color:var(--cc-ivory);padding:0 10px;font-size:14px;max-width:190px"><option value="">${rotulo}</option>${opcoes(itens, atual)}</select>`;
-  return `${titulo("Movimentações", "Lançamentos", "mais")}
+  return `${titulo("Movimentações", "Lançamentos")}
   <div class="cc-chips" style="flex-wrap:nowrap">
     <input type="month" data-filtro="mes" value="${mes}" aria-label="Mês" style="min-height:44px;border-radius:12px;border:1px solid var(--cc-line);background:var(--cc-surface);color:var(--cc-ivory);padding:0 10px;font-size:14px">
     ${sel("banco", Object.entries(BANCOS).filter(([k]) => d.contas.some((c) => c.banco === k)).map(([k, b]) => [k, b.nome]), q.banco, "Todos os bancos")}
@@ -171,13 +173,42 @@ function saldoPessoa(id) {
   for (const a of estado.d.acertos.filter((x) => x.pessoa_id === id && x.situacao === "aberto")) s += (a.direcao === "me_deve" ? 1 : -1) * restante(a);
   return s;
 }
-export function telaAcertos() {
+// Tudo que ainda falta acertar, parcela a parcela. Acerto sem parcelas vira um item "sem vencimento".
+function pendenciasAcertos(filtroPessoa) {
+  const d = estado.d, itens = [];
+  for (const a of d.acertos.filter((x) => x.situacao === "aberto" && (!filtroPessoa || x.pessoa_id === filtroPessoa))) {
+    const ps = parcelasComSaldo(a, d.parcelas, d.pagamentos).filter((p) => p.restante_centavos > 0);
+    if (ps.length) ps.forEach((p) => itens.push({ a, numero: p.numero, total: ps.length + (parcelasComSaldo(a, d.parcelas, d.pagamentos).length - ps.length), vencimento: p.vencimento, valor: p.restante_centavos }));
+    else { const r = restante(a); if (r > 0) itens.push({ a, vencimento: null, valor: r }); }
+  }
+  return itens;
+}
+// Itens que caem num mês; no mês atual entram também os atrasados
+function doMes(itens, mes, atual) { return itens.filter((i) => i.vencimento && (mesDe(i.vencimento) === mes || (mes === atual && mesDe(i.vencimento) < atual))); }
+const somaDir = (itens, dir) => itens.filter((i) => i.a.direcao === dir).reduce((s, i) => s + i.valor, 0);
+function blocoMeses(itens, mes, rotaBase) {
+  const h = hoje(), atual = mesDe(h);
+  const anterior = mesDe(somaMeses(mes + "-15", -1)), seguinte = mesDe(somaMeses(mes + "-15", 1));
+  const sel = doMes(itens, mes, atual).sort((x, y) => x.vencimento.localeCompare(y.vencimento));
+  const prox = Array.from({ length: 6 }, (_, i) => mesDe(somaMeses(atual + "-15", i)));
+  const sep = rotaBase.includes("?") ? "&" : "?";
+  return `${secao("Por mês")}
+  <div class="cc-mes-nav"><button type="button" class="cc-icon-button" data-acao="ir" data-rota="${rotaBase}${sep}mes=${anterior}" aria-label="Mês anterior">${icone("chevron-left")}</button><strong>${mesLongo(mes)}</strong><button type="button" class="cc-icon-button" data-acao="ir" data-rota="${rotaBase}${sep}mes=${seguinte}" aria-label="Próximo mês">${icone("chevron-right")}</button></div>
+  <div class="cc-grade2"><div class="cc-stat"><span>Você paga no mês</span><strong class="cc-num">${dinheiro(somaDir(sel, "eu_devo"))}</strong></div><div class="cc-stat cc-areceber"><span>Você recebe no mês</span><strong class="cc-num">${dinheiro(somaDir(sel, "me_deve"))}</strong></div></div>
+  ${lista(sel.map((i) => linha({ esquerda: logo(null, pessoa(i.a.pessoa_id)?.nome, { redondo: true }), titulo: esc(i.a.descricao) + (i.vencimento < h ? selo("Atrasado", "vencido") : ""), sub: `${esc(pessoa(i.a.pessoa_id)?.nome)} · ${i.a.direcao === "me_deve" ? "te paga" : "você paga"} · ${dataBR(i.vencimento)}${i.total > 1 ? ` · parcela ${i.numero}/${i.total}` : ""}`, valor: dinheiro(i.valor), classeValor: i.a.direcao === "me_deve" ? "cc-pos" : "", acao: "ir", attrs: `data-rota="pessoa/${i.a.pessoa_id}"` })), "Nada vence neste mês.")}
+  ${secao("Próximos 6 meses")}
+  ${lista(prox.map((m) => { const x = doMes(itens, m, atual); const pg = somaDir(x, "eu_devo"), rc = somaDir(x, "me_deve"); return linha({ titulo: mesLongo(m).replace(/^./, (c) => c.toUpperCase()), sub: `paga ${dinheiro(pg)} · recebe ${dinheiro(rc)}`, valor: dinheiro(rc - pg, { sinal: true }), classeValor: rc - pg > 0 ? "cc-pos" : "", acao: "ir", attrs: `data-rota="${rotaBase}${sep}mes=${m}"` }); }))}
+  ${itens.some((i) => !i.vencimento) ? `<p class="cc-small" style="margin-top:8px">Sem vencimento definido: paga ${dinheiro(somaDir(itens.filter((i) => !i.vencimento), "eu_devo"))} · recebe ${dinheiro(somaDir(itens.filter((i) => !i.vencimento), "me_deve"))}.</p>` : ""}`;
+}
+export function telaAcertos(q = {}) {
   const d = estado.d;
+  const mes = /^\d{4}-\d{2}$/.test(q.mes || "") ? q.mes : mesDe(hoje());
   const pessoas = d.pessoas.map((p) => ({ p, s: saldoPessoa(p.id) })).sort((a, b) => Math.abs(b.s) - Math.abs(a.s));
   const meDevem = pessoas.filter((x) => x.s > 0).reduce((s, x) => s + x.s, 0), devo = pessoas.filter((x) => x.s < 0).reduce((s, x) => s - x.s, 0);
   return `${titulo("Pessoas", "Acertos", "mais")}
-  <div class="cc-grade2"><div class="cc-stat cc-areceber"><span>Me devem</span><strong class="cc-num">${dinheiro(meDevem)}</strong><small class="cc-small">fora do disponível</small></div>
-  <div class="cc-stat"><span>Eu devo</span><strong class="cc-num">${dinheiro(devo)}</strong><small class="cc-small">entra nos compromissos</small></div></div>
+  <div class="cc-grade2"><div class="cc-stat cc-areceber"><span>Me devem (total)</span><strong class="cc-num">${dinheiro(meDevem)}</strong><small class="cc-small">fora do disponível</small></div>
+  <div class="cc-stat"><span>Eu devo (total)</span><strong class="cc-num">${dinheiro(devo)}</strong><small class="cc-small">entra nos compromissos</small></div></div>
+  ${blocoMeses(pendenciasAcertos(), mes, "acertos")}
   ${secao("Saldo por pessoa")}
   ${lista(pessoas.map(({ p, s }) => linha({ esquerda: logo(null, p.nome, { redondo: true }), titulo: esc(p.nome), sub: s > 0 ? "te deve" : s < 0 ? "você deve" : "sem pendências", valor: dinheiro(Math.abs(s)), classeValor: s > 0 ? "cc-pos" : "", acao: "ir", attrs: `data-rota="pessoa/${p.id}"` })), "Nenhuma pessoa cadastrada.")}
   ${secao("Rachas recentes")}
@@ -185,7 +216,7 @@ export function telaAcertos() {
   <div class="cc-acoes"><button type="button" class="cc-primary" data-acao="novo-racha">${icone("split", 18)}Novo racha</button>
   <div class="cc-acoes-linha" style="margin-top:0"><button type="button" class="cc-secundario" data-acao="novo-acerto">${icone("hand-coins", 18)}Dívida ou empréstimo</button><button type="button" class="cc-secundario" data-acao="nova-pessoa">${icone("plus", 18)}Pessoa</button></div></div>`;
 }
-export function telaPessoa(id) {
+export function telaPessoa(id, q = {}) {
   const d = estado.d, h = hoje();
   const p = pessoa(id);
   if (!p) return titulo("Pessoa", "Não encontrada", "acertos");
@@ -205,22 +236,29 @@ export function telaPessoa(id) {
     </div>`;
   };
   return `${titulo("Pessoa", p.nome, "acertos")}
+  ${p.contato || p.observacoes ? `<p class="cc-small" style="margin-bottom:10px">${[p.contato, p.observacoes].filter(Boolean).map(esc).join(" · ")}</p>` : ""}
   <div class="cc-hero"><span class="cc-hero-label">${s > 0 ? `${esc(p.nome)} te deve` : s < 0 ? `Você deve a ${esc(p.nome)}` : "Sem pendências"}</span><strong class="cc-amount">${dinheiro(Math.abs(s))}</strong><span class="cc-small">O que te devem não entra no disponível.</span></div>
+  ${acertos.some((a) => a.situacao === "aberto") ? blocoMeses(pendenciasAcertos(id), /^\d{4}-\d{2}$/.test(q.mes || "") ? q.mes : mesDe(h), `pessoa/${id}`) + secao("Acertos em aberto") : ""}
   ${acertos.filter((a) => a.situacao === "aberto").map(bloco).join("") || lista([], "Nenhum acerto em aberto.")}
   ${acertos.some((a) => a.situacao !== "aberto") ? secao("Quitados") + acertos.filter((a) => a.situacao !== "aberto").map(bloco).join("") : ""}
   <div class="cc-acoes"><button type="button" class="cc-secundario" data-acao="novo-acerto" data-pessoa="${p.id}">${icone("plus", 18)}Nova dívida ou empréstimo com ${esc(p.nome)}</button>
+  <button type="button" class="cc-secundario" data-acao="editar-pessoa" data-id="${p.id}">${icone("pencil", 18)}Editar dados de ${esc(p.nome)}</button>
   <button type="button" class="cc-text-button" data-acao="ir" data-rota="lancamentos?pessoa=${p.id}">Ver lançamentos ligados a ${esc(p.nome)}</button></div>`;
 }
-function formPessoa(aoCriar) {
-  const f = abrirFolha("Nova pessoa", `<form novalidate>${campo("Nome", `<input name="nome" maxlength="60" autocomplete="off">`)}${campo("Contato", `<input name="contato" maxlength="80" placeholder="telefone ou e-mail (opcional)">`)}<div class="cc-acoes"><button class="cc-primary" type="submit">Salvar</button></div></form>`);
+function formPessoa(aoCriar, p = null) {
+  const d = estado.d;
+  const temVinculo = p && (d.acertos.some((a) => a.pessoa_id === p.id) || d.cotas.some((c) => c.pessoa_id === p.id) || d.rachas.some((r) => r.pagador_pessoa_id === p.id));
+  const f = abrirFolha(p ? `Editar ${p.nome}` : "Nova pessoa", `<form novalidate>${campo("Nome", `<input name="nome" maxlength="60" autocomplete="off" value="${esc(p?.nome || "")}">`)}${campo("Contato", `<input name="contato" maxlength="80" placeholder="telefone ou e-mail (opcional)" value="${esc(p?.contato || "")}">`)}${campo("Observações", `<textarea name="observacoes" maxlength="500" placeholder="Ex.: Pix dela, combinados, apelido">${esc(p?.observacoes || "")}</textarea>`)}<div class="cc-acoes"><button class="cc-primary" type="submit">Salvar</button>${p ? (temVinculo ? `<p class="cc-small">Para apagar, primeiro apague os acertos e rachas ligados a ${esc(p.nome)}.</p>` : `<button type="button" class="cc-perigo" data-acao="apagar-pessoa" data-id="${p.id}">Apagar pessoa</button>`) : ""}</div></form>`);
   const form = f.querySelector("form");
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     const nome = form.nome.value.trim();
     if (!nome) return erroForm(form, "Informe o nome.");
-    const p = await inserir("pessoas", { nome, contato: form.contato.value.trim() || null });
-    if (!p) return;
-    fecharFolha(); await recarregar(); aoCriar ? aoCriar(p) : avisar("Pessoa salva.");
+    if (d.pessoas.some((x) => x.id !== p?.id && x.nome.toLowerCase() === nome.toLowerCase())) return erroForm(form, "Já existe uma pessoa com esse nome.");
+    const reg = { nome, contato: form.contato.value.trim() || null, observacoes: form.observacoes.value.trim() || null };
+    const r = p ? await atualizar("pessoas", p.id, reg) : await inserir("pessoas", reg);
+    if (!r) return;
+    fecharFolha(); await recarregar(); aoCriar && !p ? aoCriar(r) : avisar("Pessoa salva.");
   });
 }
 function formAcerto(pessoaId) {
@@ -278,10 +316,12 @@ function detalheAcerto(a) {
     <div class="cc-acoes">${a.situacao === "aberto" ? `<button type="button" class="cc-secundario" data-acao="perdoar-acerto" data-id="${a.id}">Marcar como encerrado sem pagamento</button>` : `<button type="button" class="cc-secundario" data-acao="reabrir-acerto" data-id="${a.id}">Reabrir</button>`}
     <button type="button" class="cc-perigo" data-acao="apagar-acerto" data-id="${a.id}">Apagar este acerto</button></div>`);
 }
-function formRacha() {
+function formRacha(lancId = null) {
   const d = estado.d;
-  if (!d.pessoas.length) return formPessoa(() => formRacha());
-  const saidas = d.lancamentos.filter((l) => l.valor_centavos < 0 && l.natureza === "normal" && l.situacao !== "futuro" && !d.rachas.some((r) => r.lancamento_id === l.id)).slice(0, 60);
+  if (!d.pessoas.length) return formPessoa(() => formRacha(lancId));
+  let saidas = d.lancamentos.filter((l) => l.valor_centavos < 0 && l.natureza === "normal" && l.situacao !== "futuro" && !d.rachas.some((r) => r.lancamento_id === l.id)).slice(0, 60);
+  const pre = lancId && d.lancamentos.find((l) => l.id === lancId);
+  if (pre && !saidas.includes(pre)) saidas = [pre, ...saidas];
   const f = abrirFolha("Novo racha", `<form id="form-racha" novalidate>
     ${campo("Ocasião", `<input name="ocasiao" maxlength="80" placeholder="Ex.: janta, viagem, casa">`)}
     <div class="cc-grade-campos">${campo("Valor total (R$)", entradaValor("valor"))}${campo("Data", `<input type="date" name="data" value="${hoje()}">`)}</div>
@@ -336,8 +376,10 @@ function formRacha() {
       : cotas.filter((c) => c.id && c.cota > 0).map((c) => ({ pessoa_id: c.id, direcao: "me_deve", descricao: `Racha: ${r.ocasiao}`, valor_total_centavos: c.cota, racha_id: r.id }));
     const criados = await inserirVarios("acertos", acertos.filter((a) => a.valor_total_centavos > 0));
     if (criados && form.prazo.value) await inserirVarios("acerto_parcelas", criados.map((a) => ({ acerto_id: a.id, numero: 1, vencimento: form.prazo.value, valor_centavos: a.valor_total_centavos })));
-    fecharFolha(); avisar("Racha salvo."); await recarregar(); ir("acertos");
+    if (r.lancamento_id) await decidir("rev:" + r.lancamento_id, "conferido");
+    fecharFolha(); avisar("Racha salvo."); await recarregar(); ir(lancId ? "revisao" : "acertos");
   });
+  if (pre) { form.lancamento.value = pre.id; form.ocasiao.value = pre.descricao.slice(0, 80); form.lancamento.dispatchEvent(new Event("change")); }
   recalcular();
 }
 // Cotas a partir do método: igual (centavos para os primeiros), percentual (maior resto) ou valores informados
@@ -375,13 +417,36 @@ export function telaAssinaturas() {
 }
 
 // ---------- Revisão ----------
+// Grava a marcação e atualiza a tela sem recarregar tudo
+async function marcarRev(ids, decisao) {
+  for (const id of ids) {
+    if (!(await decidir("rev:" + id, decisao))) return false;
+    const ds = estado.d.decisoes, i = ds.findIndex((x) => x.chave === "rev:" + id);
+    if (i >= 0) ds[i] = { ...ds[i], decisao }; else ds.push({ chave: "rev:" + id, decisao });
+  }
+  ir("revisao"); return true;
+}
 export function telaRevisao() {
   const d = estado.d, h = hoje();
   const dups = sugerirDuplicidades(d).slice(0, 20), transf = sugerirTransferencias(d).slice(0, 20), sug = sugerirAssinaturas(d, h);
   const semCat = d.lancamentos.filter((l) => !l.categoria_id && l.natureza === "normal" && l.situacao !== "futuro");
   const par = (a, b, txt) => `<div class="cc-card" style="padding:14px"><p class="cc-small" style="margin-bottom:6px">${txt}</p>${lista([linhaLancamento(a), linhaLancamento(b)])}`;
+  const marcados = new Map(d.decisoes.filter((x) => x.chave.startsWith("rev:")).map((x) => [x.chave.slice(4), x.decisao]));
+  const emRacha = new Set(d.rachas.map((r) => r.lancamento_id).filter(Boolean));
+  const conferiveis = d.lancamentos.filter((l) => l.natureza === "normal" && l.situacao !== "futuro" && !emRacha.has(l.id));
+  const aVerificar = conferiveis.filter((l) => marcados.get(l.id) === "verificar");
+  const novos = conferiveis.filter((l) => !marcados.has(l.id));
+  const botoes = (l, verif) => `<div class="cc-rev-botoes">
+    <button type="button" class="cc-rev ok" data-acao="rev-ok" data-id="${l.id}" aria-label="Conferido: ${esc(l.descricao)}">${icone("check", 20)}</button>
+    ${l.valor_centavos < 0 ? `<button type="button" class="cc-rev dividir" data-acao="rev-dividir" data-id="${l.id}" aria-label="Dividir em racha: ${esc(l.descricao)}">${icone("split", 20)}</button>` : ""}
+    ${verif ? "" : `<button type="button" class="cc-rev verificar" data-acao="rev-verificar" data-id="${l.id}" aria-label="Marcar para verificar: ${esc(l.descricao)}">${icone("circle-help", 20)}</button>`}
+  </div>`;
+  const item = (l, verif) => `<div class="cc-rev-item${verif ? " destaque" : ""}">${linhaLancamento(l)}${botoes(l, verif)}</div>`;
   return `${titulo("Conferência", "Revisão", "mais")}
-  <p class="cc-small" style="margin-bottom:14px">Cada sugestão explica o motivo. Suas decisões ficam guardadas e não voltam a aparecer.</p>
+  <p class="cc-small" style="margin-bottom:14px">Em cada lançamento: ${icone("check", 14)} está certo · ${icone("split", 14)} preciso dividir (abre o racha) · ${icone("circle-help", 14)} preciso verificar (fica em destaque).</p>
+  ${aVerificar.length ? secao("Para verificar", `<span>${aVerificar.length}</span>`) + aVerificar.map((l) => item(l, true)).join("") : ""}
+  ${secao("Lançamentos para conferir", `<span>${novos.length}</span>`)}
+  ${novos.length ? novos.slice(0, 15).map((l) => item(l, false)).join("") + (novos.length > 15 ? `<p class="cc-small" style="margin:8px 0">Mostrando os 15 mais recentes de ${novos.length}.</p>` : "") + `<button type="button" class="cc-text-button" data-acao="rev-todos-ok" data-ids="${novos.slice(0, 15).map((l) => l.id).join(",")}">${icone("check", 15)}Marcar estes ${Math.min(15, novos.length)} como conferidos</button>` : lista([], "Tudo conferido.")}
   ${secao("Categorias pendentes", `<span>${semCat.length}</span>`)}
   ${semCat.length ? lista(semCat.slice(0, 8).map(linhaLancamento)) + `<button type="button" class="cc-text-button" data-acao="ir" data-rota="lancamentos?categoria=sem&mes=${semCat[0].data.slice(0, 7)}">Ver todos sem categoria ${icone("chevron-right", 15)}</button>` : lista([], "Tudo categorizado.")}
   ${secao("Possíveis duplicidades", `<span>${dups.length}</span>`)}
@@ -555,6 +620,12 @@ registrar({
   "editar-conta": (el) => formConta(conta(el.dataset.id)),
   "arquivar-conta": async (el) => { if (!confirmarDuplo(el, "Toque de novo para arquivar")) return; if (await atualizar("contas", el.dataset.id, { arquivada: true })) { fecharFolha(); avisar("Conta arquivada."); await recarregar(); ir("contas"); } },
   "nova-pessoa": () => formPessoa(),
+  "editar-pessoa": (el) => formPessoa(null, pessoa(el.dataset.id)),
+  "apagar-pessoa": async (el) => { if (!confirmarDuplo(el, "Toque de novo para apagar")) return; if (await apagar("pessoas", el.dataset.id)) { fecharFolha(); avisar("Pessoa apagada."); await recarregar(); ir("acertos"); } },
+  "rev-ok": async (el) => { if (await marcarRev([el.dataset.id], "conferido")) avisar("Conferido."); },
+  "rev-verificar": async (el) => { if (await marcarRev([el.dataset.id], "verificar")) avisar("Marcado para verificar."); },
+  "rev-dividir": (el) => formRacha(el.dataset.id),
+  "rev-todos-ok": async (el) => { if (await marcarRev(el.dataset.ids.split(","), "conferido")) avisar("Conferidos."); },
   "nova-pessoa-racha": () => formPessoa(() => formRacha()),
   "novo-acerto": (el) => formAcerto(el.dataset.pessoa),
   "pagar-acerto": (el) => formPagamento(estado.d.acertos.find((a) => a.id === el.dataset.id)),

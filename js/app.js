@@ -11,12 +11,12 @@ const app = document.getElementById("app");
 const TELAS = {
   inicio: () => telaInicio(), composicao: (p) => telaComposicao(p), cartoes: (p) => telaCartoes(p),
   planejar: (p, q) => telaPlanejar(q), compromisso: (p) => telaCompromisso(p),
-  mais: () => telaMais(), contas: () => telaContas(), conta: (p) => telaConta(p), acertos: () => telaAcertos(), pessoa: (p) => telaPessoa(p),
+  mais: () => telaMais(), contas: () => telaContas(), conta: (p) => telaConta(p), acertos: (p, q) => telaAcertos(q), pessoa: (p, q) => telaPessoa(p, q),
   assinaturas: () => telaAssinaturas(), lancamentos: (p, q) => telaLancamentos(q), revisao: () => telaRevisao(), relatorios: (p, q) => telaRelatorios(q),
   conexoes: () => telaConexoes(), configuracoes: () => telaConfiguracoes(),
 };
 // A qual destino principal cada tela pertence (para marcar a navegação)
-const GRUPO = { inicio: "inicio", composicao: "inicio", cartoes: "cartoes", planejar: "planejar", compromisso: "planejar" };
+const GRUPO = { inicio: "inicio", composicao: "inicio", cartoes: "cartoes", lancamentos: "lancamentos", planejar: "mais", compromisso: "mais" };
 function lerRota() {
   const h = location.hash.replace(/^#\/?/, "");
   const [caminho, qs] = h.split("?");
@@ -38,7 +38,7 @@ export function aplicarTema(tema) {
 matchMedia("(prefers-color-scheme: light)").addEventListener?.("change", () => { if ((estado.d?.prefs?.tema) === "sistema") aplicarTema("sistema"); });
 
 // ---------- casca ----------
-const NAV = [["inicio", "Início", "house"], ["cartoes", "Cartões", "credit-card"], ["planejar", "Planejar", "calendar-days"], ["mais", "Mais", "ellipsis"]];
+const NAV = [["inicio", "Início", "house"], ["cartoes", "Cartões", "credit-card"], ["lancamentos", "Lançamentos", "list"], ["mais", "Mais", "ellipsis"]];
 function cabecalho() {
   return `<header class="cc-header">
     <a class="cc-brand" href="#/inicio" style="text-decoration:none;color:inherit" aria-label="Carteira Central, início"><img src="/assets/monograma.svg" alt="" width="43" height="43"><div class="cc-wordmark" aria-hidden="true"><span>CARTEIRA</span><span>CENTRAL</span></div></a>

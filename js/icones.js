@@ -63,7 +63,8 @@ const ICONES = {
   "circle-dollar-sign": [["circle",{"cx":"12","cy":"12","r":"10"}],["path",{"d":"M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"}],["path",{"d":"M12 18V6"}]],
   "banknote": [["rect",{"width":"20","height":"12","x":"2","y":"6","rx":"2"}],["circle",{"cx":"12","cy":"12","r":"2"}],["path",{"d":"M6 12h.01M18 12h.01"}]],
   "info": [["circle",{"cx":"12","cy":"12","r":"10"}],["path",{"d":"M12 16v-4"}],["path",{"d":"M12 8h.01"}]],
-  "check": [["path",{"d":"M20 6 9 17l-5-5"}]]
+  "check": [["path",{"d":"M20 6 9 17l-5-5"}]],
+  "circle-help": [["circle",{"cx":"12","cy":"12","r":"10"}],["path",{"d":"M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"}],["path",{"d":"M12 17h.01"}]]
 };
 export function icone(nome, tam = 20, extra = "") {
   const n = ICONES[nome] || ICONES["circle-ellipsis"];

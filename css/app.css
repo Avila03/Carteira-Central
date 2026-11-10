@@ -199,3 +199,17 @@ body { min-height: 100dvh; }
   .cc-theme .cc-indices { grid-template-columns: 1fr 1fr; }
   .cc-theme .cc-grade2 { gap: 8px; }
 }
+
+/* Acertos por mês */
+.cc-theme .cc-mes-nav { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 2px 0 12px; }
+.cc-theme .cc-mes-nav strong { font-size: 16px; font-weight: 600; text-transform: capitalize; }
+/* Revisão: conferir, dividir, verificar */
+.cc-theme .cc-rev-item { border: 1px solid var(--cc-line); border-radius: 16px; margin-bottom: 10px; overflow: hidden; background: var(--cc-surface); }
+.cc-theme .cc-rev-item .cc-list { margin: 0; }
+.cc-theme .cc-rev-item.destaque { border-color: #D9A441; box-shadow: 0 0 0 1px #D9A441 inset; background: color-mix(in srgb, #D9A441 9%, var(--cc-surface)); }
+.cc-theme .cc-rev-botoes { display: flex; gap: 8px; padding: 0 12px 12px; }
+.cc-theme .cc-rev { flex: 1; min-height: 44px; border-radius: 12px; border: 1px solid var(--cc-line); background: transparent; color: var(--cc-ivory); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+.cc-theme .cc-rev.ok { color: #A8C686; border-color: color-mix(in srgb, #A8C686 45%, transparent); }
+.cc-theme .cc-rev.dividir { color: #B69A60; border-color: color-mix(in srgb, #B69A60 45%, transparent); }
+.cc-theme .cc-rev.verificar { color: #D9A441; border-color: color-mix(in srgb, #D9A441 45%, transparent); }
+.cc-theme .cc-rev:active { transform: scale(.97); }
