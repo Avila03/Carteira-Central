@@ -1,5 +1,5 @@
 import { estado, icone, dinheiro, dataBR, dataCurta, mesCurto, mesLongo, esc, hoje, titulo, secao, lista, linha, selo, segmento, campo, entradaValor, opcoes, erroForm, paraCentavos, abrirFolha, fecharFolha, avisar, confirmarDuplo, registrar, conta, categoria, logoCompromisso, logoBanco, dominioServico, pct } from "./base.js";
-import { agenda, ocorrencias, somaDias, somaMeses, diasNoMes, faturasPrevistas, parcelasComSaldo, simularCompra, ENTRADAS, resumoInicio, diffDias } from "./calculos.js";
+import { agenda, ocorrencias, somaDias, somaMeses, diasNoMes, faturasPrevistas, parcelasComSaldo, simularCompra, compromissoDaSimulacao, ENTRADAS, resumoInicio, diffDias } from "./calculos.js";
 import { inserir, inserirVarios, atualizar, apagar } from "./dados.js";
 import { recarregar, ir } from "./app.js";
 import { compromissosPorMes } from "./tela-inicio.js";
@@ -275,14 +275,23 @@ registrar({
     if (s) ir(`planejar?aba=simular&descricao=${encodeURIComponent(s.descricao)}&valor=${s.valor_total_centavos}&parcelas=${s.parcelas}&data=${s.data}&cartao=${s.conta_id || ""}&sim=${s.id}`);
   },
   "incluir-simulacao": async (el) => {
-    const dados = JSON.parse(el.dataset.sim);
+    if (el.dataset.enviando) return;
+    const d = estado.d, dados = JSON.parse(el.dataset.sim);
     const c = conta(dados.conta);
-    const comp = await inserir("compromissos", { tipo: "futura", nome: dados.descricao, valor_centavos: dados.parcelaValor, periodicidade: dados.parcelas > 1 ? "mensal" : "unica", proxima_data: dados.data,
-      fim_em: dados.parcelas > 1 ? somaMeses(dados.data, dados.parcelas - 1) : null, conta_id: dados.conta || null, origem: "simulacao", observacoes: `Simulação incluída: ${dados.parcelas}× de ${dinheiro(dados.parcelaValor)}${dados.parcelas > 1 && dados.resto ? " (diferença de centavos na primeira)" : ""}` });
-    if (!comp) return;
-    const sim = { descricao: dados.descricao, valor_total_centavos: dados.valor, parcelas: dados.parcelas, data: dados.data, conta_id: dados.conta || null, incluida: true, compromisso_id: comp.id };
-    if (dados.id) await atualizar("simulacoes", dados.id, sim); else await inserir("simulacoes", sim);
-    avisar(`Incluída no planejamento${c?.tipo === "cartao" ? ", dentro das faturas previstas do cartão" : ""}.`); await recarregar(); ir("planejar?aba=compromissos&tipo=futura");
+    const comp0 = compromissoDaSimulacao(dados);
+    // Não inclui duas vezes: nem a mesma simulação salva, nem uma igual já incluída
+    const salva = dados.id && d.simulacoes.find((s) => s.id === dados.id);
+    const repetida = d.compromissos.find((x) => x.origem === "simulacao" && x.situacao !== "cancelado" && x.nome === dados.descricao && x.proxima_data === comp0.proxima_data && x.valor_centavos === comp0.valor_centavos && (x.fim_em || null) === comp0.fim_em);
+    if ((salva && salva.incluida) || repetida) { avisar("Essa simulação já está no planejamento."); return ir(`compromisso/${(salva?.compromisso_id) || repetida.id}`); }
+    el.dataset.enviando = "1"; el.disabled = true;
+    try {
+      const comp = await inserir("compromissos", { tipo: "futura", nome: dados.descricao, ...comp0, conta_id: dados.conta || null, origem: "simulacao",
+        observacoes: `Simulação incluída: ${dados.parcelas > 1 ? `${dados.parcelas}× ` : "à vista, "}total ${dinheiro(dados.valor)}${comp0.ajuste_centavos ? " (os centavos que sobram vão nas primeiras parcelas)" : ""}` });
+      if (!comp) return;
+      const sim = { descricao: dados.descricao, valor_total_centavos: dados.valor, parcelas: dados.parcelas, data: dados.data, conta_id: dados.conta || null, incluida: true, compromisso_id: comp.id };
+      if (salva) await atualizar("simulacoes", salva.id, sim); else await inserir("simulacoes", sim);
+      avisar(`Incluída no planejamento${c?.tipo === "cartao" ? ", dentro das faturas previstas do cartão" : ""}.`); await recarregar(); ir("planejar?aba=compromissos&tipo=futura");
+    } finally { delete el.dataset.enviando; if (el.isConnected) el.disabled = false; }
   },
   "salvar-simulacao": async (el) => {
     const dados = JSON.parse(el.dataset.sim);
@@ -305,13 +314,13 @@ export function simularEnvio(form) {
   const r = resumoInicio(d, h);
   const dentro = ps.filter((p) => p.data <= r.horizonte).reduce((s, p) => s + p.valor, 0);
   const sim = { descricao: form.descricao.value.trim(), valor, parcelas, data: dataC, conta: c?.id || "", parcelaValor: ps[ps.length - 1].valor, resto: ps[0].valor !== ps[ps.length - 1].valor, id: new URLSearchParams(location.hash.split("?")[1] || "").get("sim") || "" };
-  if (sim.resto) sim.parcelaValor = Math.round(valor / parcelas);
+  const jaIncluida = sim.id && d.simulacoes.find((s) => s.id === sim.id)?.incluida;
   alvo.innerHTML = `${secao("Resultado", selo("Simulação", "simulacao"))}
   <div class="cc-grade2"><div class="cc-stat"><span>${parcelas > 1 ? `${parcelas} parcelas de` : "À vista"}</span><strong class="cc-num">${dinheiro(ps[ps.length - 1].valor)}</strong>${ps[0].valor !== ps[ps.length - 1].valor ? `<small class="cc-small">primeira: ${dinheiro(ps[0].valor)}</small>` : ""}</div>
   <div class="cc-stat cc-available"><span>Disponível até ${dataCurta(r.horizonte)}</span><strong class="cc-num">${dinheiro(r.disponivel - dentro)}</strong><small class="cc-small">hoje: ${dinheiro(r.disponivel)}</small></div></div>
   ${lista(base.map((m) => { const extra = porMes.get(m.mes) || 0; return linha({ titulo: `<span style="text-transform:capitalize">${mesLongo(m.mes)}</span>`, sub: extra ? `${c?.tipo === "cartao" ? "fatura" : "saída"} com a compra · antes ${dinheiro(m.valor)}` : `sem efeito · ${dinheiro(m.valor)}`, valor: dinheiro(m.valor + extra), valorSub: extra ? `+${dinheiro(extra)}` : "" }); }))}
   <p class="cc-info"><strong>Só uma simulação</strong>Nada muda no planejamento até você incluir. ${c?.tipo === "cartao" ? "No cartão, cada parcela cai na fatura do ciclo correspondente." : "Na conta, cada parcela sai na data do mês."}</p>
-  <div class="cc-acoes"><button type="button" class="cc-primary" data-acao="incluir-simulacao" data-sim='${esc(JSON.stringify(sim))}'>Incluir no planejamento</button>
+  <div class="cc-acoes">${jaIncluida ? `<p class="cc-small">Esta simulação já está no planejamento.</p>` : `<button type="button" class="cc-primary" data-acao="incluir-simulacao" data-sim='${esc(JSON.stringify(sim))}'>Incluir no planejamento</button>`}
   ${sim.id ? "" : `<button type="button" class="cc-secundario" data-acao="salvar-simulacao" data-sim='${esc(JSON.stringify(sim))}'>Só salvar a simulação</button>`}</div>`;
   alvo.scrollIntoView({ behavior: "smooth", block: "start" });
 }

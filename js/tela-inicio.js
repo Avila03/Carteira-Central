@@ -66,7 +66,10 @@ export function compromissosPorMes(d, h, n = 6) {
     if (o.situacao === "previsto") { const m = o.data.slice(0, 7); if (m in tot) tot[m] += o.valor; }
   }
   for (const a of d.acertos.filter((x) => x.direcao === "eu_devo" && x.situacao === "aberto")) {
-    for (const p of parcelasComSaldo(a, d.parcelas, d.pagamentos)) { const m = p.vencimento.slice(0, 7); if (p.restante_centavos > 0 && m in tot) tot[m] += p.restante_centavos; }
+    const ps = parcelasComSaldo(a, d.parcelas, d.pagamentos);
+    for (const p of ps) { const m = p.vencimento.slice(0, 7); if (p.restante_centavos > 0 && m in tot) tot[m] += p.restante_centavos; }
+    // sem data: conta no mês atual até você definir um vencimento
+    if (!ps.length) { const r = a.valor_total_centavos - d.pagamentos.filter((p) => p.acerto_id === a.id).reduce((s, p) => s + p.valor_centavos, 0); if (r > 0 && h.slice(0, 7) in tot) tot[h.slice(0, 7)] += r; }
   }
   return meses.map((m) => ({ mes: m, valor: tot[m] }));
 }
@@ -146,7 +149,8 @@ export function proximosPagamentos(d, h, n = 5) {
     itens.push({ data: o.data, titulo: esc(o.compromisso.nome), valor: o.valor, esquerda: logoCompromisso(o.compromisso), selo: o.situacao === "vencido" ? selo("Vencido", "vencido") : selo("Previsto", "previsto"), rota: `compromisso/${o.compromisso.id}` });
   }
   for (const a of d.acertos.filter((x) => x.direcao === "eu_devo" && x.situacao === "aberto")) {
-    const p = parcelasComSaldo(a, d.parcelas, d.pagamentos).find((x) => x.restante_centavos > 0);
+    const ps = parcelasComSaldo(a, d.parcelas, d.pagamentos), p = ps.find((x) => x.restante_centavos > 0);
+    if (!ps.length) { const r = a.valor_total_centavos - d.pagamentos.filter((x) => x.acerto_id === a.id).reduce((s, x) => s + x.valor_centavos, 0); if (r > 0) itens.push({ data: h, titulo: `${esc(d.pessoas.find((x) => x.id === a.pessoa_id)?.nome || "Pessoa")} · ${esc(a.descricao)}`, valor: r, esquerda: `<span class="cc-ic">${icone("users", 18)}</span>`, selo: selo("Sem data", "previsto"), rota: `pessoa/${a.pessoa_id}` }); }
     if (p) itens.push({ data: p.vencimento, titulo: `${esc(d.pessoas.find((x) => x.id === a.pessoa_id)?.nome || "Pessoa")} · ${esc(a.descricao)}`, valor: p.restante_centavos, esquerda: `<span class="cc-ic">${icone("users", 18)}</span>`, selo: p.vencimento < h ? selo("Vencido", "vencido") : selo("Previsto", "previsto"), rota: `pessoa/${a.pessoa_id}` });
   }
   return itens.sort((a, b) => (a.data < b.data ? -1 : 1)).slice(0, n);
@@ -169,7 +173,7 @@ export function telaComposicao(tipo) {
     const grupos = [...new Set(r.compItens.map((i) => i.grupo))];
     return `${titulo("Composição", `Compromissos até ${dataBR(r.horizonte)}`, "inicio")}
     <div class="cc-hero"><span class="cc-hero-label">Total a pagar até ${r.semSalario ? "o fim do mês" : "o próximo salário"}</span><strong class="cc-amount">${dinheiro(r.compromissos)}</strong><span class="cc-small">Faturas, gastos fixos, assinaturas pagas na conta e parcelas com pessoas. Compras no cartão aparecem uma vez, dentro da fatura.</span></div>
-    ${grupos.map((g) => secao(g) + lista(r.compItens.filter((i) => i.grupo === g).map((i) => lin(esc(i.descricao).replace(/ · vence (\d{4}-\d\d-\d\d)/, (m, x) => ` · vence ${dataBR(x)}`), i.valor, `${dataBR(i.data)}${i.situacao === "vencido" ? " · vencido" : " · previsto"}`, i.cartao ? `cartoes/${i.cartao.id}` : i.compromisso ? `compromisso/${i.compromisso.id}` : i.acerto ? `pessoa/${i.acerto.pessoa_id}` : "")))).join("") || lista([], "Nenhum compromisso no período.")}`;
+    ${grupos.map((g) => secao(g) + lista(r.compItens.filter((i) => i.grupo === g).map((i) => lin(esc(i.descricao).replace(/ · vence (\d{4}-\d\d-\d\d)/, (m, x) => ` · vence ${dataBR(x)}`), i.valor, i.situacao === "sem_data" ? "sem data definida · conta como devido agora" : `${dataBR(i.data)}${i.situacao === "vencido" ? " · vencido" : " · previsto"}`, i.cartao ? `cartoes/${i.cartao.id}` : i.compromisso ? `compromisso/${i.compromisso.id}` : i.acerto ? `pessoa/${i.acerto.pessoa_id}` : "")))).join("") || lista([], "Nenhum compromisso no período.")}`;
   }
   if (tipo === "receber") {
     return `${titulo("Composição", "A receber", "inicio")}

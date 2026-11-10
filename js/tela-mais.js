@@ -184,21 +184,21 @@ function pendenciasAcertos(filtroPessoa) {
   return itens;
 }
 // Itens que caem num mês; no mês atual entram também os atrasados
-function doMes(itens, mes, atual) { return itens.filter((i) => i.vencimento && (mesDe(i.vencimento) === mes || (mes === atual && mesDe(i.vencimento) < atual))); }
+function doMes(itens, mes, atual) { return itens.filter((i) => (i.vencimento ? mesDe(i.vencimento) === mes || (mes === atual && mesDe(i.vencimento) < atual) : mes === atual)); }
 const somaDir = (itens, dir) => itens.filter((i) => i.a.direcao === dir).reduce((s, i) => s + i.valor, 0);
 function blocoMeses(itens, mes, rotaBase) {
   const h = hoje(), atual = mesDe(h);
   const anterior = mesDe(somaMeses(mes + "-15", -1)), seguinte = mesDe(somaMeses(mes + "-15", 1));
-  const sel = doMes(itens, mes, atual).sort((x, y) => x.vencimento.localeCompare(y.vencimento));
+  const sel = doMes(itens, mes, atual).sort((x, y) => (x.vencimento || "0").localeCompare(y.vencimento || "0"));
   const prox = Array.from({ length: 6 }, (_, i) => mesDe(somaMeses(atual + "-15", i)));
   const sep = rotaBase.includes("?") ? "&" : "?";
   return `${secao("Por mês")}
   <div class="cc-mes-nav"><button type="button" class="cc-icon-button" data-acao="ir" data-rota="${rotaBase}${sep}mes=${anterior}" aria-label="Mês anterior">${icone("chevron-left")}</button><strong>${mesLongo(mes)}</strong><button type="button" class="cc-icon-button" data-acao="ir" data-rota="${rotaBase}${sep}mes=${seguinte}" aria-label="Próximo mês">${icone("chevron-right")}</button></div>
   <div class="cc-grade2"><div class="cc-stat"><span>Você paga no mês</span><strong class="cc-num">${dinheiro(somaDir(sel, "eu_devo"))}</strong></div><div class="cc-stat cc-areceber"><span>Você recebe no mês</span><strong class="cc-num">${dinheiro(somaDir(sel, "me_deve"))}</strong></div></div>
-  ${lista(sel.map((i) => linha({ esquerda: logo(null, pessoa(i.a.pessoa_id)?.nome, { redondo: true }), titulo: esc(i.a.descricao) + (i.vencimento < h ? selo("Atrasado", "vencido") : ""), sub: `${esc(pessoa(i.a.pessoa_id)?.nome)} · ${i.a.direcao === "me_deve" ? "te paga" : "você paga"} · ${dataBR(i.vencimento)}${i.total > 1 ? ` · parcela ${i.numero}/${i.total}` : ""}`, valor: dinheiro(i.valor), classeValor: i.a.direcao === "me_deve" ? "cc-pos" : "", acao: "ir", attrs: `data-rota="pessoa/${i.a.pessoa_id}"` })), "Nada vence neste mês.")}
+  ${lista(sel.map((i) => linha({ esquerda: logo(null, pessoa(i.a.pessoa_id)?.nome, { redondo: true }), titulo: esc(i.a.descricao) + (!i.vencimento ? selo("Sem data", "previsto") : i.vencimento < h ? selo("Atrasado", "vencido") : ""), sub: `${esc(pessoa(i.a.pessoa_id)?.nome)} · ${i.a.direcao === "me_deve" ? "te paga" : "você paga"} · ${i.vencimento ? dataBR(i.vencimento) : "sem data, conta neste mês"}${i.total > 1 ? ` · parcela ${i.numero}/${i.total}` : ""}`, valor: dinheiro(i.valor), classeValor: i.a.direcao === "me_deve" ? "cc-pos" : "", acao: "ir", attrs: `data-rota="pessoa/${i.a.pessoa_id}"` })), "Nada vence neste mês.")}
   ${secao("Próximos 6 meses")}
   ${lista(prox.map((m) => { const x = doMes(itens, m, atual); const pg = somaDir(x, "eu_devo"), rc = somaDir(x, "me_deve"); return linha({ titulo: mesLongo(m).replace(/^./, (c) => c.toUpperCase()), sub: `paga ${dinheiro(pg)} · recebe ${dinheiro(rc)}`, valor: dinheiro(rc - pg, { sinal: true }), classeValor: rc - pg > 0 ? "cc-pos" : "", acao: "ir", attrs: `data-rota="${rotaBase}${sep}mes=${m}"` }); }))}
-  ${itens.some((i) => !i.vencimento) ? `<p class="cc-small" style="margin-top:8px">Sem vencimento definido: paga ${dinheiro(somaDir(itens.filter((i) => !i.vencimento), "eu_devo"))} · recebe ${dinheiro(somaDir(itens.filter((i) => !i.vencimento), "me_deve"))}.</p>` : ""}`;
+  ${itens.some((i) => !i.vencimento) ? `<p class="cc-small" style="margin-top:8px">Dívidas sem data contam no mês atual até você definir um vencimento (toque na pessoa › Editar ou definir data).</p>` : ""}`;
 }
 export function telaAcertos(q = {}) {
   const d = estado.d;
@@ -231,8 +231,9 @@ export function telaPessoa(id, q = {}) {
       <p style="margin-top:10px;font-weight:600">${esc(a.descricao)}</p>
       <strong class="cc-num" style="font-size:24px;margin:6px 0 2px">${dinheiro(r)}</strong><span class="cc-small">restante de ${dinheiro(a.valor_total_centavos)} · pago ${dinheiro(pago)}</span>
       <div class="cc-progresso"><i style="width:${(pago / a.valor_total_centavos) * 100}%"></i></div>
+      ${!ps.length && r > 0 ? `<p class="cc-small" style="margin-top:10px">Sem data definida${a.direcao === "eu_devo" ? " · conta como devido agora nos compromissos" : " · fica em A receber, fora do disponível"}</p>` : ""}
       ${ps.length ? `<p class="cc-small" style="margin-top:10px">${ps.length} parcela(s)${prox ? ` · próxima ${dataBR(prox.vencimento)}: ${dinheiro(prox.restante_centavos)}` : ""}${ps.length && r > 0 ? ` · quitação prevista ${dataBR(ps.filter((x) => x.restante_centavos > 0).pop()?.vencimento)}` : ""}</p>` : ""}
-      ${a.situacao === "aberto" ? `<div class="cc-acoes-linha"><button type="button" class="cc-primary" style="margin:0" data-acao="pagar-acerto" data-id="${a.id}">${a.direcao === "me_deve" ? "Registrar recebimento" : "Registrar pagamento"}</button><button type="button" class="cc-secundario" data-acao="detalhe-acerto" data-id="${a.id}">Detalhes</button></div>` : `<button type="button" class="cc-text-button" data-acao="detalhe-acerto" data-id="${a.id}">Ver histórico</button>`}
+      ${a.situacao === "aberto" ? `<div class="cc-acoes-linha"><button type="button" class="cc-primary" style="margin:0" data-acao="pagar-acerto" data-id="${a.id}">${a.direcao === "me_deve" ? "Registrar recebimento" : "Registrar pagamento"}</button><button type="button" class="cc-secundario" data-acao="detalhe-acerto" data-id="${a.id}">Detalhes</button></div><button type="button" class="cc-text-button" data-acao="editar-acerto" data-id="${a.id}">${icone("pencil", 15)}${ps.length ? "Editar dívida" : "Editar ou definir data"}</button>` : `<button type="button" class="cc-text-button" data-acao="detalhe-acerto" data-id="${a.id}">Ver histórico</button>`}
     </div>`;
   };
   return `${titulo("Pessoa", p.nome, "acertos")}
@@ -261,30 +262,46 @@ function formPessoa(aoCriar, p = null) {
     fecharFolha(); await recarregar(); aoCriar && !p ? aoCriar(r) : avisar("Pessoa salva.");
   });
 }
-function formAcerto(pessoaId) {
+function formAcerto(pessoaId, ac = null) {
   const d = estado.d;
   if (!d.pessoas.length) return formPessoa((p) => formAcerto(p.id));
-  const f = abrirFolha("Dívida ou empréstimo", `<form novalidate>
-    ${campo("Pessoa", `<select name="pessoa">${opcoes(d.pessoas.map((p) => [p.id, p.nome]), pessoaId)}</select>`)}
-    ${segmento("direcao", [["eu_devo", "Eu devo"], ["me_deve", "Me deve"]], "eu_devo")}
-    ${campo("Descrição", `<input name="descricao" maxlength="80" placeholder="Ex.: notebook, empréstimo">`)}
-    <div class="cc-grade-campos">${campo("Valor total (R$)", entradaValor("valor"))}${campo("Parcelas", `<select name="parcelas">${opcoes(Array.from({ length: 36 }, (_, i) => [i + 1, i ? `${i + 1}×` : "Pagamento único"]), 1)}</select>`)}</div>
-    ${campo("Primeiro vencimento", `<input type="date" name="primeira" value="${hoje()}">`, "As parcelas seguintes ficam no mesmo dia, mês a mês. Centavos que sobram vão para as primeiras.")}
-    ${campo("Observações", `<textarea name="observacoes" maxlength="500"></textarea>`)}
+  const psAtual = ac ? d.parcelas.filter((p) => p.acerto_id === ac.id).sort((x, y) => x.numero - y.numero) : [];
+  const pago = ac ? ac.valor_total_centavos - restante(ac) : 0;
+  const semData = ac ? !psAtual.length : false;
+  const f = abrirFolha(ac ? "Editar dívida" : "Dívida ou empréstimo", `<form novalidate>
+    ${campo("Pessoa", `<select name="pessoa">${opcoes(d.pessoas.map((p) => [p.id, p.nome]), ac?.pessoa_id || pessoaId)}</select>`)}
+    ${segmento("direcao", [["eu_devo", "Eu devo"], ["me_deve", "Me deve"]], ac?.direcao || "eu_devo")}
+    ${campo("Descrição", `<input name="descricao" maxlength="80" placeholder="Ex.: notebook, empréstimo" value="${esc(ac?.descricao || "")}">`)}
+    <div class="cc-grade-campos">${campo("Valor total (R$)", entradaValor("valor", ac?.valor_total_centavos))}${campo("Parcelas", `<select name="parcelas">${opcoes(Array.from({ length: 36 }, (_, i) => [i + 1, i ? `${i + 1}×` : "Pagamento único"]), psAtual.length || 1)}</select>`)}</div>
+    <label class="cc-participante" style="margin:4px 0 10px"><span><input type="checkbox" name="semdata" ${semData ? "checked" : ""}> Ainda sem data para pagar</span></label>
+    ${campo("Primeiro vencimento", `<input type="date" name="primeira" value="${psAtual[0]?.vencimento || hoje()}">`, "As parcelas seguintes ficam no mesmo dia, mês a mês. Sem data, a dívida conta como devida agora até você marcar uma data.")}
+    ${pago ? `<p class="cc-small" style="margin-bottom:10px">Já ${ac.direcao === "me_deve" ? "recebido" : "pago"}: ${dinheiro(pago)}. Os pagamentos continuam valendo e abatem as primeiras parcelas.</p>` : ""}
+    ${campo("Observações", `<textarea name="observacoes" maxlength="500">${esc(ac?.observacoes || "")}</textarea>`)}
     <div class="cc-acoes"><button class="cc-primary" type="submit">Salvar</button></div></form>`);
   const form = f.querySelector("form");
-  let direcao = "eu_devo";
+  let direcao = ac?.direcao || "eu_devo";
+  const alternar = () => { form.primeira.disabled = form.semdata.checked; if (form.semdata.checked) form.parcelas.value = "1"; form.parcelas.disabled = form.semdata.checked; };
+  form.semdata.addEventListener("change", alternar); alternar();
   f.querySelectorAll('[data-nome="direcao"]').forEach((b) => b.addEventListener("click", () => { direcao = b.dataset.valor; f.querySelectorAll('[data-nome="direcao"]').forEach((x) => x.setAttribute("aria-pressed", String(x === b))); }));
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const v = paraCentavos(form.valor.value), n = Number(form.parcelas.value);
+    const v = paraCentavos(form.valor.value), n = Number(form.parcelas.value), sem = form.semdata.checked;
     if (!form.descricao.value.trim()) return erroForm(form, "Informe a descrição.");
     if (!v || v <= 0) return erroForm(form, "Informe o valor total.");
-    if (!form.primeira.value) return erroForm(form, "Informe o primeiro vencimento.");
-    const a = await inserir("acertos", { pessoa_id: form.pessoa.value, direcao, descricao: form.descricao.value.trim(), valor_total_centavos: v, observacoes: form.observacoes.value.trim() || null });
-    if (!a) return;
-    if (!(await inserirVarios("acerto_parcelas", gerarParcelas(v, n, form.primeira.value).map((p) => ({ ...p, acerto_id: a.id }))))) return;
-    fecharFolha(); avisar("Acerto salvo."); await recarregar(); ir(`pessoa/${form.pessoa.value}`);
+    if (!sem && !form.primeira.value) return erroForm(form, "Informe o primeiro vencimento ou marque \"sem data\".");
+    if (v < pago) return erroForm(form, `O valor não pode ser menor que o já pago (${dinheiro(pago)}).`);
+    const reg = { pessoa_id: form.pessoa.value, direcao, descricao: form.descricao.value.trim(), valor_total_centavos: v, observacoes: form.observacoes.value.trim() || null };
+    let alvo = ac;
+    if (ac) { reg.situacao = v === pago ? "quitado" : "aberto"; if (!(await atualizar("acertos", ac.id, reg))) return; }
+    else { alvo = await inserir("acertos", reg); if (!alvo) return; }
+    // Refaz o calendário de parcelas (os pagamentos ficam e abatem as primeiras)
+    const novas = sem ? [] : gerarParcelas(v, n, form.primeira.value);
+    const iguais = ac && novas.length === psAtual.length && novas.every((p, i) => p.vencimento === psAtual[i].vencimento && p.valor_centavos === psAtual[i].valor_centavos);
+    if (!iguais) {
+      if (ac) { const { error } = await sb.from("acerto_parcelas").delete().eq("acerto_id", ac.id); if (error) return falhou(error); }
+      if (novas.length && !(await inserirVarios("acerto_parcelas", novas.map((p) => ({ ...p, acerto_id: alvo.id }))))) return;
+    }
+    fecharFolha(); avisar(ac ? "Dívida atualizada." : "Acerto salvo."); await recarregar(); ir(`pessoa/${form.pessoa.value}`);
   });
 }
 function formPagamento(a) {
@@ -313,7 +330,7 @@ function detalheAcerto(a) {
     ${ps.length ? secao("Parcelas") + lista(ps.map((p) => linha({ titulo: `${p.numero}ª · ${dataBR(p.vencimento)}`, sub: p.restante_centavos === 0 ? "paga" : p.pago_centavos ? `pago ${dinheiro(p.pago_centavos)}` : "em aberto", valor: dinheiro(p.valor_centavos) }))) : ""}
     ${secao("Pagamentos")}${lista(pags.map((p) => linha({ titulo: dataBR(p.data), sub: esc(p.observacoes || ""), valor: dinheiro(p.valor_centavos), acao: "apagar-pagamento", attrs: `data-id="${p.id}" data-acerto="${a.id}" aria-label="Apagar pagamento de ${dataBR(p.data)}"` })), "Nenhum pagamento ainda.")}
     <p class="cc-small" style="margin-top:8px">Toque num pagamento para apagar (dois toques).</p>
-    <div class="cc-acoes">${a.situacao === "aberto" ? `<button type="button" class="cc-secundario" data-acao="perdoar-acerto" data-id="${a.id}">Marcar como encerrado sem pagamento</button>` : `<button type="button" class="cc-secundario" data-acao="reabrir-acerto" data-id="${a.id}">Reabrir</button>`}
+    <div class="cc-acoes"><button type="button" class="cc-secundario" data-acao="editar-acerto" data-id="${a.id}">${icone("pencil", 18)}Editar dívida</button>${a.situacao === "aberto" ? `<button type="button" class="cc-secundario" data-acao="perdoar-acerto" data-id="${a.id}">Marcar como encerrado sem pagamento</button>` : `<button type="button" class="cc-secundario" data-acao="reabrir-acerto" data-id="${a.id}">Reabrir</button>`}
     <button type="button" class="cc-perigo" data-acao="apagar-acerto" data-id="${a.id}">Apagar este acerto</button></div>`);
 }
 function formRacha(lancId = null) {
@@ -327,7 +344,8 @@ function formRacha(lancId = null) {
     <div class="cc-grade-campos">${campo("Valor total (R$)", entradaValor("valor"))}${campo("Data", `<input type="date" name="data" value="${hoje()}">`)}</div>
     ${campo("Quem pagou", `<select name="pagador"><option value="">Eu</option>${opcoes(d.pessoas.map((p) => [p.id, p.nome]))}</select>`)}
     ${campo("Saída no banco (opcional)", `<select name="lancamento"><option value="">Não ligar</option>${opcoes(saidas.map((l) => [l.id, `${dataBR(l.data)} · ${l.descricao.slice(0, 26)} · ${dinheiro(l.valor_centavos)}`]))}</select>`, "Ligar preserva a saída original e trata o que vão te devolver como recuperação.")}
-    ${segmento("metodo", [["igual", "Igual"], ["percentual", "Por %"], ["valor", "Por valor"]], "igual")}
+    ${segmento("metodo", [["igual", "Igual"], ["percentual", "Por %"], ["valor", "Por valor"], ["uma_pessoa", "Só uma pessoa"]], "igual")}
+    <p class="cc-small" id="dica-metodo" style="margin:-4px 0 8px"></p>
     <div id="participantes">${[["", "Eu"], ...d.pessoas.map((p) => [p.id, p.nome])].map(([id, nome]) => `<div class="cc-participante"><label><input type="checkbox" data-part="${id}" ${id === "" ? "checked" : ""}>${esc(nome)}</label><input type="text" inputmode="decimal" data-cota="${id}" aria-label="Cota de ${esc(nome)}" placeholder="—" readonly></div>`).join("")}</div>
     <p class="cc-small" id="resumo-cotas" style="margin-top:10px"></p>
     ${campo("Prazo para acertar", `<input type="date" name="prazo">`, "opcional")}
@@ -337,8 +355,13 @@ function formRacha(lancId = null) {
   let metodo = "igual";
   const recalcular = () => {
     const total = paraCentavos(form.valor.value) || 0;
+    const uma = metodo === "uma_pessoa";
+    f.querySelector("#dica-metodo").textContent = uma ? "Você pagou e uma pessoa fica devendo o valor inteiro. Marque só ela." : "";
+    const eu = f.querySelector('[data-part=""]'); eu.disabled = uma; if (uma) { eu.checked = false; form.pagador.value = ""; } form.pagador.disabled = uma;
+    if (uma) { const m = [...f.querySelectorAll("[data-part]")].filter((x) => x.dataset.part && x.checked); m.slice(1).forEach((x) => (x.checked = false)); }
     const marcados = [...f.querySelectorAll("[data-part]")].filter((x) => x.checked).map((x) => x.dataset.part);
     f.querySelectorAll("[data-cota]").forEach((inp) => { const on = marcados.includes(inp.dataset.cota); inp.readOnly = metodo === "igual" || !on; if (!on) inp.value = ""; });
+    if (uma && marcados.length === 1) f.querySelector(`[data-cota="${marcados[0]}"]`).value = (total / 100).toFixed(2).replace(".", ",");
     if (metodo === "igual" && marcados.length) {
       const vs = dividirIgual(total, marcados.length);
       marcados.forEach((id, i) => { f.querySelector(`[data-cota="${id}"]`).value = (vs[i] / 100).toFixed(2).replace(".", ","); });
@@ -347,7 +370,7 @@ function formRacha(lancId = null) {
     const soma = cotas ? cotas.reduce((s, c) => s + c.cota, 0) : 0;
     const minha = cotas?.find((c) => c.id === "")?.cota ?? 0;
     const pagEu = !form.pagador.value;
-    f.querySelector("#resumo-cotas").textContent = !cotas ? (metodo === "percentual" ? "Os percentuais precisam somar 100." : "As cotas precisam somar o valor total.") :
+    f.querySelector("#resumo-cotas").textContent = uma ? (marcados.length === 1 ? `${pessoa(marcados[0])?.nome} te deve ${dinheiro(total)}.` : "Marque a pessoa que vai te pagar.") : !cotas ? (metodo === "percentual" ? "Os percentuais precisam somar 100." : "As cotas precisam somar o valor total.") :
       soma !== total ? `As cotas somam ${dinheiro(soma)}; o total é ${dinheiro(total)}.` : pagEu ? `Sua cota: ${dinheiro(minha)} · a receber: ${dinheiro(total - minha)}` : `Sua cota: ${dinheiro(minha)}, que você deve a quem pagou.`;
   };
   f.querySelectorAll('[data-nome="metodo"]').forEach((b) => b.addEventListener("click", () => {
@@ -355,6 +378,7 @@ function formRacha(lancId = null) {
     f.querySelectorAll("[data-cota]").forEach((i) => { i.value = ""; i.placeholder = metodo === "percentual" ? "%" : metodo === "valor" ? "0,00" : "—"; });
     recalcular();
   }));
+  f.querySelectorAll("[data-part]").forEach((x) => x.addEventListener("change", () => { if (metodo === "uma_pessoa" && x.checked) f.querySelectorAll("[data-part]").forEach((y) => { if (y !== x) y.checked = false; }); }));
   form.addEventListener("input", recalcular); form.addEventListener("change", recalcular);
   form.lancamento.addEventListener("change", () => { const l = d.lancamentos.find((x) => x.id === form.lancamento.value); if (l) { form.valor.value = (-l.valor_centavos / 100).toFixed(2).replace(".", ","); form.data.value = l.data; form.pagador.value = ""; recalcular(); } });
   form.addEventListener("submit", async (e) => {
@@ -363,7 +387,8 @@ function formRacha(lancId = null) {
     if (!form.ocasiao.value.trim()) return erroForm(form, "Informe a ocasião.");
     if (!total || total <= 0) return erroForm(form, "Informe o valor total.");
     const marcados = [...f.querySelectorAll("[data-part]")].filter((x) => x.checked).map((x) => x.dataset.part);
-    if (marcados.length < 2) return erroForm(form, "Marque pelo menos duas pessoas, contando você.");
+    if (metodo === "uma_pessoa") { if (marcados.length !== 1 || !marcados[0]) return erroForm(form, "Marque só a pessoa que vai te pagar."); }
+    else if (marcados.length < 2) return erroForm(form, "Marque pelo menos duas pessoas, contando você.");
     const pagador = form.pagador.value || null;
     if (pagador && !marcados.includes("")) return erroForm(form, "Se outra pessoa pagou, inclua você entre os participantes.");
     const cotas = calcCotas(total, marcados, metodo, f);
@@ -385,6 +410,7 @@ function formRacha(lancId = null) {
 // Cotas a partir do método: igual (centavos para os primeiros), percentual (maior resto) ou valores informados
 function calcCotas(total, ids, metodo, f) {
   if (!ids.length) return null;
+  if (metodo === "uma_pessoa") return ids.length === 1 ? [{ id: ids[0], cota: total }] : null;
   if (metodo === "igual") return dividirIgual(total, ids.length).map((v, i) => ({ id: ids[i], cota: v }));
   const vals = ids.map((id) => f.querySelector(`[data-cota="${id}"]`).value);
   if (metodo === "percentual") {
@@ -620,6 +646,7 @@ registrar({
   "editar-conta": (el) => formConta(conta(el.dataset.id)),
   "arquivar-conta": async (el) => { if (!confirmarDuplo(el, "Toque de novo para arquivar")) return; if (await atualizar("contas", el.dataset.id, { arquivada: true })) { fecharFolha(); avisar("Conta arquivada."); await recarregar(); ir("contas"); } },
   "nova-pessoa": () => formPessoa(),
+  "editar-acerto": (el) => { const a = estado.d.acertos.find((x) => x.id === el.dataset.id); if (a) formAcerto(a.pessoa_id, a); },
   "editar-pessoa": (el) => formPessoa(null, pessoa(el.dataset.id)),
   "apagar-pessoa": async (el) => { if (!confirmarDuplo(el, "Toque de novo para apagar")) return; if (await apagar("pessoas", el.dataset.id)) { fecharFolha(); avisar("Pessoa apagada."); await recarregar(); ir("acertos"); } },
   "rev-ok": async (el) => { if (await marcarRev([el.dataset.id], "conferido")) avisar("Conferido."); },
@@ -642,7 +669,7 @@ registrar({
     const d = estado.d, r = d.rachas.find((x) => x.id === el.dataset.id);
     const cs = d.cotas.filter((c) => c.racha_id === r.id);
     const l = d.lancamentos.find((x) => x.id === r.lancamento_id);
-    abrirFolha(r.ocasiao, `<p class="cc-small" style="margin-bottom:10px">${dataBR(r.data)} · ${dinheiro(r.valor_total_centavos)} · pago por ${r.pagador_pessoa_id ? esc(pessoa(r.pagador_pessoa_id)?.nome) : "você"} · divisão ${{ igual: "igual", percentual: "por percentual", valor: "por valor" }[r.metodo]}</p>
+    abrirFolha(r.ocasiao, `<p class="cc-small" style="margin-bottom:10px">${dataBR(r.data)} · ${dinheiro(r.valor_total_centavos)} · pago por ${r.pagador_pessoa_id ? esc(pessoa(r.pagador_pessoa_id)?.nome) : "você"} · divisão ${{ igual: "igual", percentual: "por percentual", valor: "por valor", uma_pessoa: "uma pessoa paga tudo" }[r.metodo]}</p>
       ${lista(cs.map((c) => linha({ titulo: c.pessoa_id ? esc(pessoa(c.pessoa_id)?.nome) : "Você", sub: c.percentual ? `${String(c.percentual).replace(".", ",")}%` : "", valor: dinheiro(c.cota_centavos) })))}
       ${l ? secao("Saída original no banco") + lista([linhaLancamento(l)]) : ""}
       <div class="cc-acoes"><button type="button" class="cc-perigo" data-acao="apagar-racha" data-id="${r.id}">Apagar racha e acertos gerados</button></div>`);

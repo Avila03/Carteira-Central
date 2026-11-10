@@ -82,3 +82,14 @@ eq("transferência própria sugerida", C.sugerirTransferencias({ ...d2, decisoes
 // Simulação 3× no cartão Itaú comprando em 20/11: parcelas em dez, jan, fev
 eq("simulação parcelada no cartão", C.simularCompra({ valor: 30000, parcelas: 3, data: "2026-11-20", cartao: itau }, H).map((p) => p.data), ["2026-12-05", "2027-01-05", "2027-02-05"]);
 console.log(falhas ? `\n${falhas} FALHA(S)` : "\nTodos os testes passaram.");
+
+// Simulação incluída não perde centavos
+{
+  const { compromissoDaSimulacao, ocorrencias, valorDaOcorrencia } = await import("../js/calculos.js");
+  for (const [valor, n] of [[10000, 3], [10001, 4], [99999, 12], [5000, 1]]) {
+    const c = { ...compromissoDaSimulacao({ valor, parcelas: n, data: "2026-12-10" }), situacao: "ativo" };
+    const datas = ocorrencias(c, "2026-01-01", "2030-01-01");
+    const soma = datas.reduce((s, d) => s + valorDaOcorrencia(c, d), 0);
+    if (datas.length !== n || soma !== valor) { console.error("FALHOU simulação", valor, n, datas.length, soma); process.exitCode = 1; } else console.log("ok    simulação", valor, "em", n, "=", soma);
+  }
+}

@@ -60,12 +60,15 @@ export function ocorrencias(c, de, ate) {
 }
 
 // Situação de uma ocorrência, considerando as baixas registradas
+// Valor de uma ocorrência: as primeiras (até ajuste_ate) levam os centavos que sobraram da divisão
+export const valorDaOcorrencia = (c, ref) => c.valor_centavos + (c.ajuste_centavos && c.ajuste_ate && ref <= c.ajuste_ate ? c.ajuste_centavos : 0);
 export function situacaoOcorrencia(c, ref, baixas, hoje) {
   const b = baixas.find((x) => x.compromisso_id === c.id && x.referencia === ref);
-  if (b) return { situacao: b.situacao, baixa: b, valor: b.valor_centavos ?? c.valor_centavos };
+  const v = valorDaOcorrencia(c, ref);
+  if (b) return { situacao: b.situacao, baixa: b, valor: b.valor_centavos ?? v };
   const entrada = ENTRADAS.has(c.tipo);
-  if (ref < hoje) return { situacao: entrada ? "atrasado" : "vencido", valor: c.valor_centavos };
-  return { situacao: "previsto", valor: c.valor_centavos };
+  if (ref < hoje) return { situacao: entrada ? "atrasado" : "vencido", valor: v };
+  return { situacao: "previsto", valor: v };
 }
 
 // Lista de ocorrências com situação, num intervalo
@@ -203,6 +206,9 @@ export function resumoInicio(d, hoje) {
     const ps = parcelasComSaldo(a, d.parcelas, d.pagamentos);
     if (ps.length) {
       for (const p of ps) if (p.restante_centavos > 0 && p.vencimento <= horizonte) compItens.push({ grupo: "Acertos com pessoas", descricao: `${pess?.nome ?? "Pessoa"} · ${a.descricao} (${p.numero}/${ps.length})`, data: p.vencimento, valor: p.restante_centavos, situacao: p.vencimento < hoje ? "vencido" : "previsto", acerto: a });
+    } else {
+      const r = a.valor_total_centavos - d.pagamentos.filter((p) => p.acerto_id === a.id).reduce((s, p) => s + p.valor_centavos, 0);
+      if (r > 0) compItens.push({ grupo: "Acertos com pessoas", descricao: `${pess?.nome ?? "Pessoa"} · ${a.descricao} · sem data`, data: hoje, valor: r, situacao: "sem_data", acerto: a });
     }
   }
   compItens.sort((a, b) => (a.data < b.data ? -1 : 1));
@@ -343,6 +349,12 @@ export function sugerirTransferencias(d) {
 }
 
 // ---------- simulação ----------
+// Compromisso equivalente a uma compra simulada: base mensal + 1 centavo nas primeiras, somando o total exato
+export function compromissoDaSimulacao({ valor, parcelas, data }) {
+  const base = Math.floor(valor / parcelas), resto = valor - base * parcelas;
+  return { valor_centavos: base, periodicidade: parcelas > 1 ? "mensal" : "unica", proxima_data: data, fim_em: parcelas > 1 ? somaMeses(data, parcelas - 1) : null,
+    ajuste_centavos: resto ? 1 : 0, ajuste_ate: resto ? somaMeses(data, resto - 1) : null };
+}
 // Efeito de uma compra simulada nos próximos meses: parcelas por mês de pagamento
 export function simularCompra({ valor, parcelas, data, cartao }, hoje) {
   const valores = dividirIgual(valor, parcelas);
