@@ -105,16 +105,17 @@ body { min-height: 100dvh; }
 .cc-theme .cc-plastico::after { content: ''; position: absolute; inset: 0; z-index: -1; background: linear-gradient(160deg, rgba(255,255,255,.16), rgba(255,255,255,0) 42%, rgba(0,0,0,.25)); pointer-events: none; }
 /* Grade de cartões: cada um no seu quadrado, sem sobreposição */
 .cc-theme .cc-cartoes-grade { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 4px 0 18px; }
-.cc-theme .cc-plastico.quadrado { aspect-ratio: 1; padding: 14px; border-radius: 16px; }
-.cc-theme .cc-plastico.quadrado .cc-plastico-topo { gap: 8px; align-items: flex-start; }
-.cc-theme .cc-plastico.quadrado .cc-plastico-topo .cc-logo { width: 30px !important; height: 30px !important; }
-.cc-theme .cc-plastico.quadrado .cc-plastico-topo strong { font-size: 13px; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.cc-theme .cc-plastico.quadrado .cc-uso { height: 5px; border-radius: 3px; background: rgba(0,0,0,.3); overflow: hidden; }
+.cc-theme .cc-plastico.quadrado { aspect-ratio: 1; padding: 14px; border-radius: 16px; gap: 6px; justify-content: flex-start; }
+.cc-theme .cc-plastico.quadrado::before { display: none; }
+.cc-theme .cc-plastico.quadrado .q-topo { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.cc-theme .cc-plastico.quadrado .q-topo .cc-logo { width: 30px !important; height: 30px !important; border-radius: 50%; background: rgba(255,255,255,.95); }
+.cc-theme .cc-plastico.quadrado .q-bandeira { font-size: 10px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; opacity: .85; }
+.cc-theme .cc-plastico.quadrado .q-nome { font-size: 13px; font-weight: 600; line-height: 1.25; margin-top: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-shadow: 0 1px 2px rgba(0,0,0,.3); }
+.cc-theme .cc-plastico.quadrado .cc-uso { height: 5px; border-radius: 3px; background: rgba(0,0,0,.3); overflow: hidden; margin-top: 2px; }
 .cc-theme .cc-plastico.quadrado .cc-uso i { display: block; height: 100%; background: #F0EBDD; border-radius: 3px; }
-.cc-theme .cc-plastico.quadrado .cc-plastico-base { flex-direction: column; align-items: flex-start; gap: 2px; }
-.cc-theme .cc-plastico.quadrado .cc-plastico-base strong { font-size: 19px; }
-.cc-theme .cc-plastico.quadrado .cc-plastico-base span { font-size: 11px; }
-.cc-theme .cc-plastico.quadrado .cc-bandeira { position: absolute; right: 14px; bottom: 12px; font-size: 12px; }
+.cc-theme .cc-plastico.quadrado .q-base { margin-top: auto; min-width: 0; }
+.cc-theme .cc-plastico.quadrado .q-base span { display: block; font-size: 11px; opacity: .9; }
+.cc-theme .cc-plastico.quadrado .q-base strong { display: block; font-size: clamp(15px, 4.6vw, 20px); font-weight: 600; letter-spacing: -.3px; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 3px rgba(0,0,0,.35); }
 .cc-theme .cc-plastico-topo { display: flex; align-items: center; gap: 10px; }
 .cc-theme .cc-plastico-topo .cc-logo { width: 34px; height: 34px; border-radius: 50%; border: 1px solid rgba(255,255,255,.5); background: rgba(255,255,255,.92); color: #13241A; }
 .cc-theme .cc-plastico-topo strong { font-size: 15px; font-weight: 600; letter-spacing: .2px; text-shadow: 0 1px 2px rgba(0,0,0,.3); }

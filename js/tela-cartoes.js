@@ -9,11 +9,12 @@ const nomeCartao = (c) => (c.nome_banco && !/^sem nome$/i.test(c.nome_banco.trim
 export function quadrado(c, f) {
   const b = BANCOS[c.banco] || BANCOS.outro;
   const usado = c.limite_centavos ? Math.min(100, ((c.limite_centavos - (c.limite_disponivel_centavos ?? c.limite_centavos)) / c.limite_centavos) * 100) : 0;
-  return `<a class="cc-plastico quadrado" href="#/cartoes/${c.id}" style="background:linear-gradient(140deg, ${b.cor} 0%, ${b.cor2} 95%)" aria-label="${esc(nomeCartao(c))}, fatura ${dinheiro(f.total)}, vence ${dataCurta(f.vencimento)}">
-    <div class="cc-plastico-topo">${logoBanco(c.banco, { redondo: true, tam: 30 })}<strong>${esc(nomeCartao(c))}</strong></div>
-    <div><div class="cc-uso" aria-hidden="true"><i style="width:${usado}%"></i></div></div>
-    <div class="cc-plastico-base"><span>Vence ${dataCurta(f.vencimento)}</span><strong>${dinheiro(f.total)}</strong></div>
-    <span class="cc-bandeira">${esc(BANDEIRA[String(c.bandeira || "").toUpperCase()] || c.bandeira || "")}</span>
+  const bandeira = BANDEIRA[String(c.bandeira || "").toUpperCase()] || c.bandeira || "";
+  return `<a class="cc-plastico quadrado" href="#/cartoes/${c.id}" style="background:linear-gradient(150deg, ${b.cor} 0%, ${b.cor2} 100%)" aria-label="${esc(nomeCartao(c))}, fatura ${dinheiro(f.total)}, vence ${dataCurta(f.vencimento)}">
+    <div class="q-topo">${logoBanco(c.banco, { redondo: true, tam: 30 })}<span class="q-bandeira">${esc(bandeira)}</span></div>
+    <strong class="q-nome">${esc(nomeCartao(c))}</strong>
+    <div class="cc-uso" aria-hidden="true"><i style="width:${usado}%"></i></div>
+    <div class="q-base"><span>Vence ${dataCurta(f.vencimento)}</span><strong>${dinheiro(f.total)}</strong></div>
   </a>`;
 }
 export function plastico(c, f, { aberto = false } = {}) {
