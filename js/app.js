@@ -96,7 +96,7 @@ function fecharAbertura() {
   const a = document.getElementById("abertura");
   if (!a || a.dataset.saindo) return;
   a.dataset.saindo = "1";
-  const esperar = Math.max(0, 650 - (performance.now() - (window.__inicio || 0)));
+  const esperar = Math.max(0, 1650 - performance.now()); // deixa a cunhagem terminar
   setTimeout(() => { a.classList.add("sai"); setTimeout(() => a.remove(), 450); }, esperar);
 }
 

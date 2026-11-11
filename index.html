@@ -27,10 +27,24 @@
 <link rel="stylesheet" href="/css/tokens.css">
 <link rel="stylesheet" href="/css/components.css">
 <link rel="stylesheet" href="/css/app.css">
+<style>
+#abertura{position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:radial-gradient(circle at 50% 46%,#173A27,#0C1712 55%,#080D0B);transition:opacity .45s ease}
+#abertura.sai{opacity:0;pointer-events:none}
+.ab-moeda{animation:ab-cunha .7s cubic-bezier(.2,1.5,.4,1) both;filter:drop-shadow(0 8px 20px rgba(0,0,0,.45))}
+.ab-fio{display:block;width:120px;height:1px;background:#B69A60;transform:scaleX(0);animation:ab-fio .55s .45s ease-out forwards}
+.ab-nome{font-family:Georgia,'Times New Roman',serif;color:#F0EBDD;font-size:19px;letter-spacing:6px;line-height:1.35;text-align:center;padding-left:6px}
+.ab-nome span{opacity:0;display:inline-block;transform:translateY(4px);animation:ab-letra .32s ease-out forwards}
+@keyframes ab-cunha{0%{transform:scale(2.2);opacity:0}60%{transform:scale(.92);opacity:1}100%{transform:scale(1)}}
+@keyframes ab-fio{to{transform:scaleX(1)}}
+@keyframes ab-letra{to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.ab-moeda,.ab-fio,.ab-nome span{animation:none;opacity:1;transform:none}}
+</style>
 </head>
 <body>
-<div id="abertura" aria-hidden="true" style="position:fixed;inset:0;z-index:100;background:radial-gradient(circle at 50% 46%,#173A27,#0C1712 55%,#080D0B);display:flex;align-items:center;justify-content:center;transition:opacity .45s ease">
-  <img src="/assets/marca-horizontal.svg" alt="" style="width:68%;max-width:360px;position:relative;filter:drop-shadow(0 6px 18px rgba(0,0,0,.4))">
+<div id="abertura" aria-hidden="true">
+  <svg class="ab-moeda" viewBox="0 0 256 256" width="96" height="96"><path fill="#F0EBDD" d="M117 14H139V40H188L222 74V112H194V85L176 67H80L62 85V173L80 191H176L194 173V148H222V184L188 218H139V242H117V218H68L34 184V74L68 40H117Z"/><path fill="#A8C686" d="M100 86H164L180 102V122H156V112H110V150H156V140H180V160L164 176H100L84 160V102Z"/></svg>
+  <i class="ab-fio"></i>
+  <div class="ab-nome"><div><span style="animation-delay:0.700s">C</span><span style="animation-delay:0.745s">A</span><span style="animation-delay:0.790s">R</span><span style="animation-delay:0.835s">T</span><span style="animation-delay:0.880s">E</span><span style="animation-delay:0.925s">I</span><span style="animation-delay:0.970s">R</span><span style="animation-delay:1.015s">A</span></div><div><span style="animation-delay:1.060s">C</span><span style="animation-delay:1.105s">E</span><span style="animation-delay:1.150s">N</span><span style="animation-delay:1.195s">T</span><span style="animation-delay:1.240s">R</span><span style="animation-delay:1.285s">A</span><span style="animation-delay:1.330s">L</span></div></div>
 </div>
 <div id="app" class="cc-theme"><p class="carregando">Carregando…</p></div>
 <script type="module" src="/js/app.js"></script>
