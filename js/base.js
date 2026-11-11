@@ -83,9 +83,20 @@ export function logo(dominio, texto, { redondo = false, tam = 36 } = {}) {
   return `<span class="cc-logo${redondo ? " redondo" : ""}" style="width:${tam}px;height:${tam}px" aria-hidden="true">${esc(iniciais(texto))}${img}</span>`;
 }
 export const logoBanco = (banco, opts) => logo(BANCOS[banco]?.dominio, BANCOS[banco]?.nome || "Banco", opts);
+// Anexos de um item (links e fotos), usados para o ícone e a marca de clipe nas listas
+const anexosDoItem = (tipo, id) => (estado.d?.anexos || []).filter((a) => a.alvo_tipo === tipo && a.alvo_id === id);
+export function marcaAnexo(tipo, id) {
+  const n = anexosDoItem(tipo, id).length;
+  return n ? `<span class="cc-clipe" title="${n} anexo(s)" aria-label="${n} anexo(s)">${icone("paperclip", 13)}${n > 1 ? n : ""}</span>` : "";
+}
 export function logoCompromisso(c) {
-  const dom = c.dominio || dominioServico(c.nome);
+  const ax = anexosDoItem("compromisso", c.id);
+  const link = ax.find((a) => a.tipo === "link");
+  let domAnexo = null; try { domAnexo = link ? new URL(link.url).hostname.replace(/^www\./, "") : null; } catch { domAnexo = null; }
+  const dom = c.dominio || domAnexo || dominioServico(c.nome);
   if (dom) return logo(dom, c.nome);
+  const foto = ax.find((a) => a.tipo === "foto");
+  if (foto) return `<span class="cc-logo cc-logo-foto" style="width:36px;height:36px" aria-hidden="true"><img data-caminho="${esc(foto.caminho)}" alt=""></span>`;
   const ic = { salario: "briefcase", receita: "sparkles", fixo: "receipt", assinatura: "repeat2", futura: "calendar-days" }[c.tipo] || "receipt";
   return `<span class="cc-ic">${icone(ic, 18)}</span>`;
 }

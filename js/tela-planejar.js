@@ -1,6 +1,6 @@
 import { campoAnexos, salvarAnexosPendentes } from "./anexos.js";
 import { carimbar } from "./marca.js";
-import { estado, icone, dinheiro, dataBR, dataCurta, mesCurto, mesLongo, esc, hoje, titulo, secao, lista, linha, selo, segmento, campo, entradaValor, opcoes, erroForm, paraCentavos, abrirFolha, fecharFolha, avisar, confirmarDuplo, registrar, conta, categoria, logoCompromisso, logoBanco, dominioServico, pct } from "./base.js";
+import { estado, icone, dinheiro, dataBR, dataCurta, mesCurto, mesLongo, esc, hoje, titulo, secao, lista, linha, selo, segmento, campo, entradaValor, opcoes, erroForm, paraCentavos, abrirFolha, fecharFolha, avisar, confirmarDuplo, registrar, conta, categoria, logoCompromisso, logoBanco, marcaAnexo, dominioServico, pct } from "./base.js";
 import { agenda, ocorrencias, somaDias, somaMeses, diasNoMes, faturasPrevistas, parcelasComSaldo, simularCompra, compromissoDaSimulacao, dividirIgual, ENTRADAS, resumoInicio, diffDias } from "./calculos.js";
 import { inserir, inserirVarios, atualizar, apagar } from "./dados.js";
 import { sb, pessoa as pessoaPor } from "./base.js";
@@ -87,7 +87,7 @@ function abaCompromissos(q) {
     if (!itens.length) return "";
     return secao(TIPOS[tipo] + (tipo === "receita" ? "s" : tipo === "salario" ? "" : "s")) + lista(itens.map((c) => {
       const o = prox(c);
-      return linha({ esquerda: logoCompromisso(c), titulo: esc(c.nome) + (c.situacao !== "ativo" ? selo(c.situacao === "pausado" ? "Pausado" : "Cancelado") : ""), sub: `${PERIODOS.find((p) => p[0] === c.periodicidade)?.[1]}${o ? ` · próxima ${dataBR(o.data)}${selo(nomeSituacao[o.situacao], o.situacao)}` : ""}${conta(c.conta_id) ? ` · ${esc(conta(c.conta_id).nome)}` : ""}`, valor: dinheiro(ENTRADAS.has(tipo) ? c.valor_centavos : -c.valor_centavos), valorSub: c.valor_variavel ? "estimado" : "", classeValor: ENTRADAS.has(tipo) ? "cc-pos" : "", acao: "ir", attrs: `data-rota="compromisso/${c.id}"` });
+      return linha({ esquerda: logoCompromisso(c), titulo: esc(c.nome) + marcaAnexo("compromisso", c.id) + (c.situacao !== "ativo" ? selo(c.situacao === "pausado" ? "Pausado" : "Cancelado") : ""), sub: `${PERIODOS.find((p) => p[0] === c.periodicidade)?.[1]}${o ? ` · próxima ${dataBR(o.data)}${selo(nomeSituacao[o.situacao], o.situacao)}` : ""}${conta(c.conta_id) ? ` · ${esc(conta(c.conta_id).nome)}` : ""}`, valor: dinheiro(ENTRADAS.has(tipo) ? c.valor_centavos : -c.valor_centavos), valorSub: c.valor_variavel ? "estimado" : "", classeValor: ENTRADAS.has(tipo) ? "cc-pos" : "", acao: "ir", attrs: `data-rota="compromisso/${c.id}"` });
     }));
   };
   const ativosDesp = d.compromissos.filter((c) => c.situacao === "ativo" && !ENTRADAS.has(c.tipo) && c.periodicidade !== "unica");

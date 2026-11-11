@@ -1,6 +1,6 @@
 import { campoAnexos, salvarAnexosPendentes } from "./anexos.js";
 import { carimbo, carimbar, nomeDono, nomeNoCartao } from "./marca.js";
-import { sb, estado, icone, dinheiro, dataBR, dataCurta, dataHoraBR, diaExtenso, mesLongo, esc, pct, hoje, titulo, secao, lista, linha, selo, segmento, campo, entradaValor, opcoes, erroForm, paraCentavos, abrirFolha, fecharFolha, avisar, falhou, confirmarDuplo, registrar, conta, categoria, pessoa, BANCOS, logoBanco, logoCompromisso, logo, dominioServico, gravarLocal } from "./base.js";
+import { sb, estado, icone, dinheiro, dataBR, dataCurta, dataHoraBR, diaExtenso, mesLongo, esc, pct, hoje, titulo, secao, lista, linha, selo, segmento, campo, entradaValor, opcoes, erroForm, paraCentavos, abrirFolha, fecharFolha, avisar, falhou, confirmarDuplo, registrar, conta, categoria, pessoa, BANCOS, logoBanco, logoCompromisso, logo, marcaAnexo, dominioServico, gravarLocal } from "./base.js";
 import { consumoDoMes, caixaDoMes, sugerirAssinaturas, sugerirDuplicidades, sugerirTransferencias, parcelasComSaldo, dividirIgual, dividirPercentual, gerarParcelas, somaMeses, somaDias, agenda, mesDe, normalizarDescricao } from "./calculos.js";
 import { inserir, inserirVarios, atualizar, apagar, decidir, salvarPrefs } from "./dados.js";
 import { recarregar, ir, aplicarTema } from "./app.js";
@@ -37,7 +37,7 @@ export function linhaLancamento(l) {
   const verificar = marcaRevisao(l.id) === "verificar";
   const rot = l.natureza === "pagamento_fatura" ? "Pagamento de fatura" : l.natureza === "transferencia_propria" ? "Transferência entre minhas contas" : (k?.nome || "Sem categoria");
   const extra = [l.total_parcelas > 1 ? `${l.parcela}/${l.total_parcelas}` : "", SITUACAO[l.situacao] || "", ORIGEM[l.origem]].filter(Boolean);
-  return linha({ esquerda: logoBanco(c?.banco), titulo: esc(l.descricao) + (verificar ? selo("Verificar", "vencido") : ""), sub: `${dataCurta(l.data)} · ${esc(rot)} · ${esc(c?.nome || "")}${extra.length ? " · " + extra.join(" · ") : ""}${(l.etiquetas || []).map((e) => " #" + esc(e)).join("")}`, valor: dinheiro(l.valor_centavos, { sinal: true }), classeValor: l.valor_centavos > 0 ? "cc-pos" : "", acao: "editar-lancamento", attrs: `data-id="${l.id}"` });
+  return linha({ esquerda: logoBanco(c?.banco), titulo: esc(l.descricao) + marcaAnexo("lancamento", l.id) + (verificar ? selo("Verificar", "vencido") : ""), sub: `${dataCurta(l.data)} · ${esc(rot)} · ${esc(c?.nome || "")}${extra.length ? " · " + extra.join(" · ") : ""}${(l.etiquetas || []).map((e) => " #" + esc(e)).join("")}`, valor: dinheiro(l.valor_centavos, { sinal: true }), classeValor: l.valor_centavos > 0 ? "cc-pos" : "", acao: "editar-lancamento", attrs: `data-id="${l.id}"` });
 }
 export function telaLancamentos(q) {
   const d = estado.d;
