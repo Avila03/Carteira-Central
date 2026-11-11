@@ -83,6 +83,8 @@ export function logo(dominio, texto, { redondo = false, tam = 36 } = {}) {
   return `<span class="cc-logo${redondo ? " redondo" : ""}" style="width:${tam}px;height:${tam}px" aria-hidden="true">${esc(iniciais(texto))}${img}</span>`;
 }
 export const logoBanco = (banco, opts) => logo(BANCOS[banco]?.dominio, BANCOS[banco]?.nome || "Banco", opts);
+// "portal.pucrs.br" vira "pucrs.br"; "app.empresa.com.br" vira "empresa.com.br" (o site principal costuma ter o logotipo)
+const dominioRaiz = (h) => { const p = h.toLowerCase().split("."); const n = /\.(com|net|org|gov|edu|art|blog|app)\.br$/.test(h) ? 3 : 2; return p.slice(-n).join("."); };
 // Anexos de um item (links e fotos), usados para o ícone e a marca de clipe nas listas
 const anexosDoItem = (tipo, id) => (estado.d?.anexos || []).filter((a) => a.alvo_tipo === tipo && a.alvo_id === id);
 export function marcaAnexo(tipo, id) {
@@ -92,7 +94,7 @@ export function marcaAnexo(tipo, id) {
 export function logoCompromisso(c) {
   const ax = anexosDoItem("compromisso", c.id);
   const link = ax.find((a) => a.tipo === "link");
-  let domAnexo = null; try { domAnexo = link ? new URL(link.url).hostname.replace(/^www\./, "") : null; } catch { domAnexo = null; }
+  let domAnexo = null; try { domAnexo = link ? dominioRaiz(new URL(link.url).hostname) : null; } catch { domAnexo = null; }
   const dom = c.dominio || domAnexo || dominioServico(c.nome);
   if (dom) return logo(dom, c.nome);
   const foto = ax.find((a) => a.tipo === "foto");
