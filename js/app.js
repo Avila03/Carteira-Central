@@ -3,7 +3,7 @@ import { carregarTudo, salvarPrefs } from "./dados.js";
 import { ICONES_NAV, moedaCC } from "./marca.js";
 import { telaInicio, telaComposicao } from "./tela-inicio.js";
 import { telaCartoes } from "./tela-cartoes.js";
-import { telaPlanejar, telaCompromisso, simularEnvio } from "./tela-planejar.js";
+import { telaPlanejar, telaCompromisso, simularEnvio, gerarCobrancasRateio } from "./tela-planejar.js";
 import { atualizarBlocoPush, buscarDados, telaMais, telaContas, telaConta, telaAcertos, telaPessoa, telaAssinaturas, telaLancamentos, telaRevisao, telaRelatorios, telaConexoes, telaConfiguracoes, abrirBusca, ITENS_MAIS } from "./tela-mais.js";
 
 const app = document.getElementById("app");
@@ -128,7 +128,7 @@ function fecharAbertura() {
 
 export async function recarregar() {
   const y = scrollY;
-  if (await carregarTudo()) { desenhar(); scrollTo(0, y); }
+  if (await carregarTudo()) { if (await gerarCobrancasRateio().catch(() => 0)) await carregarTudo(); desenhar(); scrollTo(0, y); }
 }
 
 // ---------- entrada (login privado) ----------
@@ -203,6 +203,6 @@ sb.auth.onAuthStateChange((_ev, sessao) => {
   if (antes === agora && agora) return;
   if (!sessao) { estado.d = null; fecharFolha(); return entrada(); }
   app.innerHTML = `<p class="carregando">Carregando seus dados…</p>`;
-  setTimeout(async () => { if (await carregarTudo()) { aplicarTema(estado.d.prefs.tema || "escuro"); desenhar(); } }, 0);
+  setTimeout(async () => { if (await carregarTudo()) { if (await gerarCobrancasRateio().catch(() => 0)) await carregarTudo(); aplicarTema(estado.d.prefs.tema || "escuro"); desenhar(); } }, 0);
 });
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});

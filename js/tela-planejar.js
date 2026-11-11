@@ -1,7 +1,8 @@
 import { carimbar } from "./marca.js";
 import { estado, icone, dinheiro, dataBR, dataCurta, mesCurto, mesLongo, esc, hoje, titulo, secao, lista, linha, selo, segmento, campo, entradaValor, opcoes, erroForm, paraCentavos, abrirFolha, fecharFolha, avisar, confirmarDuplo, registrar, conta, categoria, logoCompromisso, logoBanco, dominioServico, pct } from "./base.js";
-import { agenda, ocorrencias, somaDias, somaMeses, diasNoMes, faturasPrevistas, parcelasComSaldo, simularCompra, compromissoDaSimulacao, ENTRADAS, resumoInicio, diffDias } from "./calculos.js";
+import { agenda, ocorrencias, somaDias, somaMeses, diasNoMes, faturasPrevistas, parcelasComSaldo, simularCompra, compromissoDaSimulacao, dividirIgual, ENTRADAS, resumoInicio, diffDias } from "./calculos.js";
 import { inserir, inserirVarios, atualizar, apagar } from "./dados.js";
+import { sb, pessoa as pessoaPor } from "./base.js";
 import { recarregar, ir } from "./app.js";
 import { compromissosPorMes } from "./tela-inicio.js";
 
@@ -148,12 +149,37 @@ export function telaCompromisso(id) {
   <div class="cc-card"><div class="cc-card-top"><span>${PERIODOS.find((p) => p[0] === c.periodicidade)?.[1]}${c.valor_variavel ? " · valor variável" : ""}</span>${logoCompromisso(c)}</div>
     <strong class="cc-num">${dinheiro(c.valor_centavos)}</strong><span class="cc-small">${c.valor_variavel ? "Previsão de valor" : "Valor"}${c.periodicidade !== "unica" ? ` · ${dinheiro(Math.round(mensal))} por mês · ${dinheiro(Math.round(mensal * 12))} por ano` : ""}</span>
     <div class="cc-card-foot"><span>${conta(c.conta_id) ? `${entrada ? "Recebe em" : "Paga com"} ${esc(conta(c.conta_id).nome)}` : "Conta não definida"}</span><span>${c.situacao === "ativo" ? "Ativo" : c.situacao === "pausado" ? "Pausado" : `Cancelado em ${dataBR(c.cancelado_em)}`}</span></div></div>
+  ${rateiosDe(c).length ? secao("Dividido com", `<span>sua parte ${dinheiro(suaParte(c))}</span>`) + lista(rateiosDe(c).map((r) => linha({ titulo: esc(pessoaPor(r.pessoa_id)?.nome || "Pessoa"), sub: "te paga a cada cobrança", valor: dinheiro(r.cota_centavos), classeValor: "cc-pos", acao: "ir", attrs: `data-rota="pessoa/${r.pessoa_id}"` }))) + `<p class="cc-small" style="margin:6px 0 4px">Cobranças desde ${dataBR(c.rateio_desde)} viram valores a receber em Acertos.</p>` : ""}
   ${secao("Ocorrências", "<span>toque para marcar</span>")}
   ${lista(ocs.map((o) => linha({ titulo: dataBR(o.data), sub: selo(nomeSituacao[o.situacao], o.situacao).replace('class="cc-selo', 'style="margin-left:0" class="cc-selo') + (o.baixa?.lancamento_id ? " · ligado a um lançamento" : ""), valor: dinheiro(o.valor), acao: "baixar", attrs: `data-id="${c.id}" data-ref="${o.data}"` })), "Sem ocorrências neste período.")}
   ${c.observacoes ? `<p class="cc-info"><strong>Observações</strong>${esc(c.observacoes)}</p>` : ""}
   <p class="cc-info"><strong>Cancelar aqui não cancela no fornecedor</strong>Marcar como cancelado tira das previsões e mantém o histórico. O cancelamento junto à empresa continua sendo com você.</p>
   <div class="cc-acoes"><button type="button" class="cc-primary" data-acao="editar-compromisso" data-id="${c.id}">${icone("pencil", 18)}Editar</button>
   ${c.situacao === "cancelado" ? `<button type="button" class="cc-secundario" data-acao="reativar-compromisso" data-id="${c.id}">Reativar</button>` : `<button type="button" class="cc-perigo" data-acao="cancelar-compromisso" data-id="${c.id}">Marcar como cancelado</button>`}</div>`;
+}
+
+// ---------- rateio de assinaturas e gastos fixos ----------
+export const rateiosDe = (c) => estado.d.rateios.filter((r) => r.compromisso_id === c.id && r.cota_centavos > 0);
+export const suaParte = (c) => Math.max(0, c.valor_centavos - rateiosDe(c).reduce((s, r) => s + r.cota_centavos, 0));
+// Cada cobrança que chega (até hoje) vira "me deve" para cada pessoa da divisão, vencendo na data da cobrança.
+export async function gerarCobrancasRateio() {
+  const d = estado.d, h = hoje();
+  let novas = 0;
+  for (const c of d.compromissos.filter((x) => x.rateio_desde && x.situacao === "ativo")) {
+    const rs = rateiosDe(c);
+    if (!rs.length) continue;
+    for (const ref of ocorrencias(c, c.rateio_desde, h)) {
+      if (d.baixas.some((b) => b.compromisso_id === c.id && b.referencia === ref && b.situacao === "ignorado")) continue;
+      for (const r of rs) {
+        if (d.acertos.some((a) => a.compromisso_id === c.id && a.referencia === ref && a.pessoa_id === r.pessoa_id)) continue;
+        const { data: a, error } = await sb.from("acertos").insert({ pessoa_id: r.pessoa_id, direcao: "me_deve", descricao: `${c.nome} · ${mesLongo(ref.slice(0, 7))}`, valor_total_centavos: r.cota_centavos, compromisso_id: c.id, referencia: ref }).select().single();
+        if (error) continue; // já existia (outro aparelho criou)
+        await sb.from("acerto_parcelas").insert({ acerto_id: a.id, numero: 1, vencimento: ref, valor_centavos: r.cota_centavos });
+        novas++;
+      }
+    }
+  }
+  return novas;
 }
 
 // ---------- formulários ----------
@@ -171,10 +197,12 @@ function formCompromisso(c, padrao = {}) {
     ${campo(ENTRADAS.has(tipo) ? "Conta de recebimento" : "Forma de pagamento", `<select name="conta"><option value="">Não definida</option>${opcoes(contas.map((x) => [x.id, x.nome]), c?.conta_id || padrao.conta)}</select>`, ENTRADAS.has(tipo) ? "" : "No cartão, o gasto entra na fatura prevista; na conta, entra no disponível.")}
     ${campo("Categoria", `<select name="categoria"><option value="">Sem categoria</option>${opcoes(cats.map((k) => [k.id, k.nome]), c?.categoria_id)}</select>`)}
     ${tipo === "assinatura" ? campo("Site do serviço", `<input name="dominio" autocapitalize="none" placeholder="netflix.com" value="${esc(c?.dominio || "")}">`, "Usado só para mostrar o logotipo oficial.") + campo("Lembrar antes da cobrança", `<select name="lembrete">${opcoes([["", "Não lembrar"], [1, "1 dia antes"], [3, "3 dias antes"], [7, "7 dias antes"]], c?.lembrete_dias ?? "")}</select>`) : ""}
+    ${tipo === "assinatura" || tipo === "fixo" ? secaoRateio(c) : ""}
     ${campo("Observações", `<textarea name="observacoes" maxlength="500">${esc(c?.observacoes || "")}</textarea>`, tipo === "assinatura" ? "Anote fim de desconto ou de teste grátis." : "")}
     <div class="cc-acoes"><button class="cc-primary" type="submit">Salvar</button>${c ? `<button type="button" class="cc-perigo" data-acao="apagar-compromisso" data-id="${c.id}">Apagar de vez (sem histórico)</button>` : ""}</div>
   </form>`);
   const form = f.querySelector("form");
+  const rat = ligarRateio(f, form, c);
   form.tipo.addEventListener("change", () => { fecharFolha(); formCompromisso(c ? { ...c, tipo: form.tipo.value } : null, { ...padrao, tipo: form.tipo.value }); });
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -187,10 +215,54 @@ function formCompromisso(c, padrao = {}) {
       conta_id: form.conta.value || null, categoria_id: form.categoria.value || null, observacoes: form.observacoes.value.trim() || null,
       dominio: form.dominio ? (form.dominio.value.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "") || dominioServico(nome)) : (c?.dominio || dominioServico(nome)),
       lembrete_dias: form.lembrete && form.lembrete.value ? Number(form.lembrete.value) : null };
+    const cotas = rat ? rat.cotas(v) : null;
+    if (rat && cotas === false) return erroForm(form, "As partes das pessoas passam do valor total.");
+    if (rat) { reg.rateio_desde = cotas.length ? (form.desde.value || hoje()) : null; reg.rateio_metodo = cotas.length ? rat.metodo() : null; }
     const ok = c ? await atualizar("compromissos", c.id, reg) : await inserir("compromissos", reg);
     if (!ok) return;
-    fecharFolha(); avisar("Compromisso salvo."); await recarregar();
+    if (rat) {
+      const id = c?.id || ok.id;
+      const { error } = await sb.from("compromisso_rateios").delete().eq("compromisso_id", id);
+      if (error) return avisar("Não consegui salvar a divisão.");
+      if (cotas.length && !(await inserirVarios("compromisso_rateios", cotas.map((x) => ({ compromisso_id: id, pessoa_id: x.pessoa, cota_centavos: x.cota }))))) return;
+    }
+    fecharFolha(); avisar(cotas?.length ? "Salvo. Cada cobrança vira um valor a receber de cada pessoa." : "Compromisso salvo."); await recarregar();
   });
+}
+
+function secaoRateio(c) {
+  const d = estado.d;
+  const atuais = c ? d.rateios.filter((r) => r.compromisso_id === c.id) : [];
+  if (!d.pessoas.length) return `${secao("Dividir com pessoas")}<p class="cc-small" style="margin-bottom:12px">Cadastre as pessoas em Mais › Acertos para dividir este valor.</p>`;
+  const metodo = c?.rateio_metodo || "igual";
+  return `${secao("Dividir com pessoas")}
+    <p class="cc-small" style="margin-bottom:8px">Você paga o valor inteiro; a cada cobrança, cada pessoa marcada fica te devendo a parte dela.</p>
+    ${segmento("rateio-metodo", [["igual", "Igual, comigo"], ["valor", "Por valor"]], metodo)}
+    <div id="rateio-pessoas">${d.pessoas.map((p) => { const r = atuais.find((x) => x.pessoa_id === p.id); return `<div class="cc-participante"><label><input type="checkbox" data-rpess="${p.id}" ${r ? "checked" : ""}>${esc(p.nome)}</label><input type="text" inputmode="decimal" data-rcota="${p.id}" aria-label="Parte de ${esc(p.nome)}" value="${r ? (r.cota_centavos / 100).toFixed(2).replace(".", ",") : ""}" placeholder="—"></div>`; }).join("")}</div>
+    <p class="cc-small" id="rateio-resumo" style="margin:8px 0 10px"></p>
+    ${campo("Cobrar a partir de", `<input type="date" name="desde" value="${c?.rateio_desde || hoje().slice(0, 8) + "01"}">`, "Cobranças desde esta data viram valores a receber.")}`;
+}
+function ligarRateio(f, form, c) {
+  if (!f.querySelector("#rateio-pessoas")) return null;
+  let metodo = c?.rateio_metodo || "igual";
+  const marcados = () => [...f.querySelectorAll("[data-rpess]")].filter((x) => x.checked).map((x) => x.dataset.rpess);
+  const calc = (total) => {
+    const ids = marcados();
+    if (!ids.length) return [];
+    if (metodo === "igual") { const vs = dividirIgual(total, ids.length + 1); return ids.map((id, i) => ({ pessoa: id, cota: vs[i + 1] })); }
+    const cs = ids.map((id) => ({ pessoa: id, cota: paraCentavos(f.querySelector(`[data-rcota="${id}"]`).value) || 0 }));
+    return cs.reduce((s, x) => s + x.cota, 0) > total ? false : cs;
+  };
+  const atualizar = () => {
+    const total = paraCentavos(form.valor.value) || 0, cs = calc(total);
+    f.querySelectorAll("[data-rcota]").forEach((i) => { const on = marcados().includes(i.dataset.rcota); i.readOnly = metodo === "igual" || !on; if (!on) i.value = ""; });
+    if (metodo === "igual" && cs) cs.forEach((x) => { f.querySelector(`[data-rcota="${x.pessoa}"]`).value = (x.cota / 100).toFixed(2).replace(".", ","); });
+    f.querySelector("#rateio-resumo").textContent = cs === false ? "As partes passam do valor total." : cs.length ? `Sua parte: ${dinheiro(total - cs.reduce((s, x) => s + x.cota, 0))} · a receber por cobrança: ${dinheiro(cs.reduce((s, x) => s + x.cota, 0))}` : "Ninguém marcado: você paga tudo.";
+  };
+  f.querySelectorAll('[data-nome="rateio-metodo"]').forEach((b) => b.addEventListener("click", () => { metodo = b.dataset.valor; f.querySelectorAll('[data-nome="rateio-metodo"]').forEach((x) => x.setAttribute("aria-pressed", String(x === b))); atualizar(); }));
+  form.addEventListener("input", atualizar); form.addEventListener("change", atualizar);
+  atualizar();
+  return { cotas: (total) => calc(total), metodo: () => metodo };
 }
 
 function formObjetivo(o) {

@@ -3,6 +3,7 @@ import { sb, estado, icone, dinheiro, dataBR, dataCurta, dataHoraBR, diaExtenso,
 import { consumoDoMes, caixaDoMes, sugerirAssinaturas, sugerirDuplicidades, sugerirTransferencias, parcelasComSaldo, dividirIgual, dividirPercentual, gerarParcelas, somaMeses, somaDias, agenda, mesDe, normalizarDescricao } from "./calculos.js";
 import { inserir, inserirVarios, atualizar, apagar, decidir, salvarPrefs } from "./dados.js";
 import { recarregar, ir, aplicarTema } from "./app.js";
+import { suaParte, rateiosDe } from "./tela-planejar.js";
 
 const ORIGEM = { manual: "Manual", pluggy: "Banco", importacao: "Importado" };
 const SITUACAO = { efetivado: "", pendente: "Pendente no banco", futuro: "Parcela futura" };
@@ -432,14 +433,15 @@ export function telaAssinaturas() {
   const ass = d.compromissos.filter((c) => c.tipo === "assinatura" && c.situacao !== "cancelado");
   const canceladas = d.compromissos.filter((c) => c.tipo === "assinatura" && c.situacao === "cancelado");
   const porMes = { mensal: 1, anual: 1 / 12, semestral: 1 / 6, trimestral: 1 / 3, bimestral: 1 / 2, semanal: 52 / 12, quinzenal: 26 / 12, unica: 0 };
-  const mensal = Math.round(ass.filter((c) => c.situacao === "ativo").reduce((s, c) => s + c.valor_centavos * (porMes[c.periodicidade] ?? 1), 0));
+  const mensal = Math.round(ass.filter((c) => c.situacao === "ativo").reduce((s, c) => s + suaParte(c) * (porMes[c.periodicidade] ?? 1), 0));
+  const divididas = ass.filter((c) => rateiosDe(c).length).length;
   const sug = sugerirAssinaturas(d, h);
   const prox = (c) => agenda([c], d.baixas, h, somaDias(h, 400), h)[0];
   return `${titulo("Compromissos", "Assinaturas", "mais")}
-  <div class="cc-grade2"><div class="cc-stat"><span>Custo mensal equivalente</span><strong class="cc-num">${dinheiro(mensal)}</strong><small class="cc-small">para comparar custos</small></div>
+  <div class="cc-grade2"><div class="cc-stat"><span>Custo mensal${divididas ? " (sua parte)" : " equivalente"}</span><strong class="cc-num">${dinheiro(mensal)}</strong><small class="cc-small">${divididas ? `${divididas} dividida(s) com pessoas` : "para comparar custos"}</small></div>
   <div class="cc-stat"><span>Por ano</span><strong class="cc-num">${dinheiro(mensal * 12)}</strong><small class="cc-small">${ass.filter((c) => c.situacao === "ativo").length} ativa(s)</small></div></div>
   ${secao("Próximas cobranças", "<span>datas reais</span>")}
-  ${lista(ass.map((c) => { const o = prox(c); return linha({ esquerda: logoCompromisso(c), titulo: esc(c.nome) + (c.situacao === "pausado" ? selo("Pausada") : ""), sub: `${o ? dataBR(o.data) : "sem data"} · ${esc(conta(c.conta_id)?.nome || "forma não definida")}`, valor: dinheiro(c.valor_centavos), valorSub: c.periodicidade === "mensal" ? "por mês" : c.periodicidade, acao: "ir", attrs: `data-rota="compromisso/${c.id}"` }); }), "Nenhuma assinatura confirmada.")}
+  ${lista(ass.map((c) => { const o = prox(c); return linha({ esquerda: logoCompromisso(c), titulo: esc(c.nome) + (c.situacao === "pausado" ? selo("Pausada") : ""), sub: `${o ? dataBR(o.data) : "sem data"} · ${esc(conta(c.conta_id)?.nome || "forma não definida")}`, valor: dinheiro(c.valor_centavos), valorSub: rateiosDe(c).length ? `sua parte ${dinheiro(suaParte(c))}` : c.periodicidade === "mensal" ? "por mês" : c.periodicidade, acao: "ir", attrs: `data-rota="compromisso/${c.id}"` }); }), "Nenhuma assinatura confirmada.")}
   ${sug.length ? secao("Encontrei nos seus lançamentos", `<span>${sug.length}</span>`) + lista(sug.map((s) => `<div class="cc-row">${logo(dominioServico(s.nome), s.nome)}<div class="cc-row-main"><strong>${esc(s.nome)}</strong><span>${s.meses} meses seguidos · última ${dataBR(s.ultima)} · ${esc(conta(s.conta_id)?.nome || "")}</span></div><div class="cc-row-fim"><strong class="cc-num">${dinheiro(s.valor)}</strong><span><button type="button" class="cc-text-button" style="min-height:44px;display:inline-flex" data-acao="confirmar-assinatura" data-chave="${esc(s.chave)}">Confirmar</button> <button type="button" class="cc-text-button" style="min-height:44px;display:inline-flex;color:var(--cc-muted)" data-acao="rejeitar-assinatura" data-chave="${esc(s.chave)}">Não é</button></span></div></div>`)) : ""}
   ${canceladas.length ? secao("Canceladas", "<span>histórico mantido</span>") + lista(canceladas.map((c) => linha({ esquerda: logoCompromisso(c), titulo: esc(c.nome), sub: `cancelada em ${dataBR(c.cancelado_em)}`, valor: dinheiro(c.valor_centavos), acao: "ir", attrs: `data-rota="compromisso/${c.id}"` }))) : ""}
   <div class="cc-acoes"><button type="button" class="cc-primary" data-acao="novo-compromisso" data-tipo="assinatura">${icone("plus", 18)}Nova assinatura</button></div>`;
