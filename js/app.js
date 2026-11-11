@@ -4,7 +4,7 @@ import { ICONES_NAV, moedaCC } from "./marca.js";
 import { telaInicio, telaComposicao } from "./tela-inicio.js";
 import { telaCartoes } from "./tela-cartoes.js";
 import { telaPlanejar, telaCompromisso, simularEnvio } from "./tela-planejar.js";
-import { buscarDados, telaMais, telaContas, telaConta, telaAcertos, telaPessoa, telaAssinaturas, telaLancamentos, telaRevisao, telaRelatorios, telaConexoes, telaConfiguracoes, abrirBusca, ITENS_MAIS } from "./tela-mais.js";
+import { atualizarBlocoPush, buscarDados, telaMais, telaContas, telaConta, telaAcertos, telaPessoa, telaAssinaturas, telaLancamentos, telaRevisao, telaRelatorios, telaConexoes, telaConfiguracoes, abrirBusca, ITENS_MAIS } from "./tela-mais.js";
 
 const app = document.getElementById("app");
 
@@ -74,6 +74,7 @@ export function desenhar() {
   app.innerHTML = `${lateral(rota.tela)}<div class="cc-coluna">${cabecalho()}<main class="cc-main" id="conteudo">${corpo}</main></div>${navegacao(grupo)}`;
   desenhando = false;
   if (estado.ocultar) gravarOcultos(app);
+  if (rota.tela === "configuracoes") atualizarBlocoPush();
   fecharAbertura();
   document.title = `${document.querySelector(".cc-main h1")?.textContent || "Início"} · Carteira Central`;
 }

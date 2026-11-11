@@ -579,6 +579,68 @@ export async function buscarDados() {
   buscando = false; await recarregar();
 }
 
+// ---------- Notificações (Web Push) ----------
+const pushSuportado = () => "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+function blocoPush() {
+  const av = estado.d.prefs.avisos || {};
+  if (!pushSuportado()) return `<p class="cc-small">Para receber notificações, abra a Carteira Central pelo ícone na tela de início do iPhone (adicionado pelo Safari em Compartilhar › Adicionar à Tela de Início). Pelo navegador o iPhone não permite.</p>`;
+  if (Notification.permission === "denied") return `<p class="cc-small">As notificações foram bloqueadas. Libere em Ajustes do iPhone › Notificações › Carteira, depois volte aqui.</p>`;
+  return `<div class="cc-list" style="padding:12px 14px">
+    <p class="cc-small" id="push-estado" style="margin-bottom:10px">Verificando…</p>
+    <label class="cc-interruptor"><span>Resumo da manhã<br><small class="cc-small">o que vence ou entra hoje e amanhã</small></span><input type="checkbox" data-aviso="push_resumo" ${av.push_resumo ? "checked" : ""}></label>
+    <label class="cc-interruptor"><span>Fatura fechou<br><small class="cc-small">valor final e vencimento de cada cartão</small></span><input type="checkbox" data-aviso="push_fatura" ${av.push_fatura ? "checked" : ""}></label>
+    <p class="cc-small" style="margin:6px 0 10px">Chegam às 9h, só quando houver algo para avisar.</p>
+    <div class="cc-acoes" style="margin-top:0" id="push-botoes"></div>
+  </div>`;
+}
+async function inscricaoAtual() { const reg = await navigator.serviceWorker.ready; return reg.pushManager.getSubscription(); }
+export async function atualizarBlocoPush() {
+  const el = document.getElementById("push-estado"), bt = document.getElementById("push-botoes");
+  if (!el || !bt) return;
+  const sub = await inscricaoAtual().catch(() => null);
+  const ativo = sub && Notification.permission === "granted";
+  el.textContent = ativo ? "Ativas neste iPhone." : "Desligadas neste aparelho.";
+  bt.innerHTML = ativo
+    ? `<button type="button" class="cc-secundario" data-acao="push-teste">${icone("bell", 18)}Enviar notificação de teste</button><button type="button" class="cc-secundario" data-acao="push-previa">Ver o que chegaria hoje</button><button type="button" class="cc-text-button" data-acao="push-desligar">Desligar neste aparelho</button>`
+    : `<button type="button" class="cc-primary" data-acao="push-ativar">${icone("bell", 18)}Ativar notificações</button>`;
+}
+const b64uParaBytes = (s) => { const t = s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4); return Uint8Array.from(atob(t), (c) => c.charCodeAt(0)); };
+const bytesParaB64u = (b) => btoa(String.fromCharCode(...new Uint8Array(b))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+async function ativarPush() {
+  // o pedido de permissão precisa sair direto do toque
+  const perm = await Notification.requestPermission();
+  if (perm !== "granted") { avisar("Sem permissão, o iPhone não deixa enviar notificações."); return desenharConfig(); }
+  const { data, error } = await sb.functions.invoke("notificar", { body: { acao: "chave", origem: location.origin } });
+  if (error || !data?.chave) return avisar("Não consegui preparar as notificações. Tente de novo.");
+  const reg = await navigator.serviceWorker.ready;
+  let sub = await reg.pushManager.getSubscription();
+  if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64uParaBytes(data.chave) });
+  const j = sub.toJSON();
+  const { error: e2 } = await sb.from("push_inscricoes").upsert({ endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, aparelho: /iPhone/.test(navigator.userAgent) ? "iPhone" : /Mac/.test(navigator.userAgent) ? "Mac" : "Outro" }, { onConflict: "endpoint" });
+  if (falhou(e2)) return;
+  const av = estado.d.prefs.avisos || {};
+  await salvarPrefs({ avisos: { ...av, push_resumo: av.push_resumo ?? true, push_fatura: av.push_fatura ?? true } });
+  await sb.functions.invoke("notificar", { body: { acao: "teste" } });
+  avisar("Notificações ativadas. Mandei uma de teste.");
+  desenharConfig();
+}
+function desenharConfig() { const b = document.getElementById("bloco-push"); if (b) { b.innerHTML = blocoPush(); atualizarBlocoPush(); } }
+registrar({
+  "push-ativar": () => ativarPush(),
+  "push-teste": async () => { const { data, error } = await sb.functions.invoke("notificar", { body: { acao: "teste" } }); avisar(error ? "Não consegui enviar o teste." : data?.entregues ? "Teste enviado." : "Nenhum aparelho recebeu. Tente desligar e ativar de novo."); },
+  "push-previa": async () => {
+    const { data, error } = await sb.functions.invoke("notificar", { body: { acao: "previa" } });
+    if (error) return avisar("Não consegui montar a prévia.");
+    const itens = [data.resumo, ...(data.faturas || [])].filter(Boolean);
+    abrirFolha("O que chegaria hoje às 9h", itens.length ? itens.map((m) => `<div class="cc-list" style="padding:12px 14px;margin-bottom:10px"><strong>${esc(m.titulo)}</strong><p class="cc-small" style="white-space:pre-line;margin-top:4px">${esc(m.corpo)}</p></div>`).join("") + `<p class="cc-small">Cada aviso chega uma vez só.</p>` : lista([], "Nada para avisar hoje: nenhuma notificação seria enviada."));
+  },
+  "push-desligar": async () => {
+    const sub = await inscricaoAtual();
+    if (sub) { await sb.from("push_inscricoes").delete().eq("endpoint", sub.endpoint); await sub.unsubscribe(); }
+    avisar("Notificações desligadas neste aparelho."); desenharConfig();
+  },
+});
+
 // ---------- Configurações ----------
 export function telaConfiguracoes() {
   const d = estado.d;
@@ -593,13 +655,15 @@ export function telaConfiguracoes() {
   ${segmento("tema", [["escuro", "Escuro"], ["claro", "Claro"], ["sistema", "Do aparelho"]], d.prefs.tema || "escuro")}
   ${secao("Privacidade")}
   <label class="cc-interruptor"><span>Abrir com os valores ocultos</span><input type="checkbox" data-pref-local="cc-ocultar" ${estado.ocultar ? "checked" : ""}></label>
+  ${secao("Notificações no iPhone")}
+  <div id="bloco-push">${blocoPush()}</div>
   ${secao("Avisos no app")}
   <label class="cc-interruptor"><span>Vencimento de fatura</span><input type="checkbox" data-aviso="fatura" ${av.fatura !== false ? "checked" : ""}></label>
   ${campo("Avisar quantos dias antes", `<select data-aviso-dias="fatura_dias">${opcoes([[1, "1 dia"], [3, "3 dias"], [5, "5 dias"], [7, "7 dias"]], av.fatura_dias ?? 3)}</select>`)}
   <label class="cc-interruptor"><span>Renovação de assinatura (com lembrete)</span><input type="checkbox" data-aviso="renovacao" ${av.renovacao !== false ? "checked" : ""}></label>
   <label class="cc-interruptor"><span>Parcela atrasada de quem me deve</span><input type="checkbox" data-aviso="acertos" ${av.acertos ? "checked" : ""}></label>
   <label class="cc-interruptor"><span>Problema de conexão com banco</span><input type="checkbox" data-aviso="conexao" ${av.conexao !== false ? "checked" : ""}></label>
-  <p class="cc-small">Os avisos aparecem no Início. Notificações no iPhone com o app fechado ainda não estão ligadas.</p>
+  <p class="cc-small">Esses avisos aparecem no topo do Início quando você abre o app.</p>
   ${secao("Categorias de despesa")}${cats("despesa")}
   ${secao("Categorias de receita")}${cats("receita")}
   <div class="cc-acoes"><button type="button" class="cc-secundario" data-acao="editar-categoria">${icone("plus", 18)}Nova categoria</button></div>
