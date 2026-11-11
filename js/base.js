@@ -88,6 +88,7 @@ export const ICONE_SALARIO = `<svg viewBox="0 0 48 48" width="100%" height="100%
   <defs><linearGradient id="sal-f" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2F6B45"/><stop offset="1" stop-color="#10241A"/></linearGradient></defs>
   <rect width="48" height="48" rx="11" fill="url(#sal-f)"/>
   <rect x="1" y="1" width="46" height="46" rx="10" fill="none" stroke="#B69A60" stroke-opacity=".7"/>
+  <g transform="translate(24 24) scale(1.16) translate(-23 -23.5)">
   <rect x="12" y="9" width="22" height="13" rx="1.6" fill="#1A3D2A" stroke="#A8C686" stroke-width="1.1"/>
   <circle cx="23" cy="15.5" r="2.6" fill="none" stroke="#A8C686" stroke-width=".9"/>
   <path d="M14.5 13c1.6-1 3-1 4.4 0M27.6 18c1.6 1 3 1 4.4 0" fill="none" stroke="#A8C686" stroke-width=".6" opacity=".8"/>
@@ -97,12 +98,14 @@ export const ICONE_SALARIO = `<svg viewBox="0 0 48 48" width="100%" height="100%
   <circle cx="35" cy="34" r="7" fill="#B69A60" stroke="#E2C98A" stroke-width="1"/>
   <circle cx="35" cy="34" r="4.6" fill="none" stroke="#7A6532" stroke-width=".9"/>
   <path d="M35 36.6v-5M32.8 33.6l2.2-2.2 2.2 2.2" fill="none" stroke="#7A6532" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
 </svg>`;
 // Ícone próprio da carteira (dinheiro em espécie): cédulas em leque com uma moeda dourada, no traço da gravura
 export const ICONE_ESPECIE = `<svg viewBox="0 0 48 48" width="100%" height="100%" aria-hidden="true">
   <defs><linearGradient id="esp-f" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2F6B45"/><stop offset="1" stop-color="#10241A"/></linearGradient></defs>
   <rect width="48" height="48" rx="11" fill="url(#esp-f)"/>
   <rect x="1" y="1" width="46" height="46" rx="10" fill="none" stroke="#B69A60" stroke-opacity=".7"/>
+  <g transform="translate(24 24) scale(1.16) translate(-23 -23.5)">
   <g transform="rotate(-14 22 22)"><rect x="7" y="13" width="28" height="16" rx="2" fill="#1A3D2A" stroke="#A8C686" stroke-width="1.2"/><path d="M10 21c3-2 6-2 9 0s6 2 9 0 4-1 5 0" fill="none" stroke="#A8C686" stroke-width=".7" opacity=".8"/></g>
   <rect x="9" y="17" width="28" height="16" rx="2" fill="#F0EBDD"/>
   <rect x="11" y="19" width="24" height="12" rx="1.2" fill="none" stroke="#214E34" stroke-width=".9"/>
@@ -112,6 +115,7 @@ export const ICONE_ESPECIE = `<svg viewBox="0 0 48 48" width="100%" height="100%
   <circle cx="35" cy="34" r="7" fill="#B69A60" stroke="#E2C98A" stroke-width="1"/>
   <circle cx="35" cy="34" r="4.6" fill="none" stroke="#7A6532" stroke-width=".9"/>
   <circle cx="35" cy="34" r="2.6" fill="none" stroke="#7A6532" stroke-width=".7" stroke-dasharray=".9 .7"/><circle cx="35" cy="34" r="1" fill="#7A6532"/>
+  </g>
 </svg>`;
 export const logoBanco = (banco, { redondo = false, tam = 36 } = {}) => BANCOS[banco]?.desenho
   ? `<span class="cc-logo cc-logo-desenho${redondo ? " redondo" : ""}" style="width:${tam}px;height:${tam}px" aria-hidden="true">${ICONE_ESPECIE}</span>`
