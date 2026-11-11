@@ -16,7 +16,7 @@ async function todos(tabela, select = "*", ordem) {
 
 export async function carregarTudo() {
   try {
-    const [contas, categorias, lancamentos, conexoes, faturas, investimentos, compromissos, baixas, pessoas, acertos, parcelas, pagamentos, rachas, cotas, objetivos, simulacoes, decisoes, rateios, prefs, sinc] = await Promise.all([
+    const [contas, categorias, lancamentos, conexoes, faturas, investimentos, compromissos, baixas, pessoas, acertos, parcelas, pagamentos, rachas, cotas, objetivos, simulacoes, decisoes, rateios, anexos, prefs, sinc] = await Promise.all([
       todos("contas_saldo", "*", ["criado_em", true]),
       todos("categorias", "*", ["nome", true]),
       todos("lancamentos", "*", ["data", false]),
@@ -35,12 +35,13 @@ export async function carregarTudo() {
       todos("simulacoes", "*", ["criado_em", false]),
       todos("revisao_decisoes"),
       todos("compromisso_rateios"),
+      todos("anexos", "*", ["criado_em", true]),
       sb.from("preferencias").select("*").maybeSingle(),
       sb.from("sincronizacoes").select("*").order("id", { ascending: false }).limit(1),
     ]);
     estado.d = {
       contas, categorias, lancamentos, conexoes, faturas, investimentos, compromissos, baixas, pessoas, acertos, parcelas,
-      pagamentos, rachas, cotas, objetivos, simulacoes, decisoes, rateios,
+      pagamentos, rachas, cotas, objetivos, simulacoes, decisoes, rateios, anexos,
       prefs: prefs.data || { tema: "escuro", avisos: { fatura: true, fatura_dias: 3, conexao: true, renovacao: true } },
       ultimaSinc: sinc.data?.[0] || null,
     };

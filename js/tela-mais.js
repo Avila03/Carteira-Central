@@ -1,3 +1,4 @@
+import { campoAnexos, salvarAnexosPendentes } from "./anexos.js";
 import { carimbo, carimbar, nomeDono, nomeNoCartao } from "./marca.js";
 import { sb, estado, icone, dinheiro, dataBR, dataCurta, dataHoraBR, diaExtenso, mesLongo, esc, pct, hoje, titulo, secao, lista, linha, selo, segmento, campo, entradaValor, opcoes, erroForm, paraCentavos, abrirFolha, fecharFolha, avisar, falhou, confirmarDuplo, registrar, conta, categoria, pessoa, BANCOS, logoBanco, logoCompromisso, logo, dominioServico, gravarLocal } from "./base.js";
 import { consumoDoMes, caixaDoMes, sugerirAssinaturas, sugerirDuplicidades, sugerirTransferencias, parcelasComSaldo, dividirIgual, dividirPercentual, gerarParcelas, somaMeses, somaDias, agenda, mesDe, normalizarDescricao } from "./calculos.js";
@@ -88,6 +89,7 @@ function formLancamento(l) {
     ${campo("Etiquetas", `<input name="etiquetas" autocapitalize="none" placeholder="viagem, casa" value="${esc((l?.etiquetas || []).join(", "))}">`, "Separe por vírgula.")}
     ${campo("Observações", `<textarea name="observacoes" maxlength="500">${esc(l?.observacoes || "")}</textarea>`)}
     ${doBanco ? `<p class="cc-small" style="margin-bottom:8px">Sua descrição, categoria, etiquetas e observações são mantidas nas próximas sincronizações.</p>` : ""}
+    ${campoAnexos("lancamento", l?.id)}
     <div class="cc-acoes"><button class="cc-primary" type="submit">Salvar</button>${l && !doBanco ? `<button type="button" class="cc-perigo" data-acao="apagar-lancamento" data-id="${l.id}">Excluir lançamento</button>` : ""}</div>
   </form>`);
   const form = f.querySelector("form");
@@ -109,6 +111,7 @@ function formLancamento(l) {
     }
     const ok = l ? await atualizar("lancamentos", l.id, reg) : await inserir("lancamentos", reg);
     if (!ok) return;
+    if (!l) await salvarAnexosPendentes("lancamento", ok.id);
     fecharFolha(); avisar("Lançamento salvo."); await recarregar();
   });
 }
@@ -139,6 +142,7 @@ export function telaConta(id) {
   <strong class="cc-num">${dinheiro(c.saldo_centavos)}</strong><span class="cc-small">${c.origem === "pluggy" ? `Saldo informado pelo banco em ${dataHoraBR(c.dados_em)}` : "Saldo inicial + lançamentos efetivados"}</span>
   <div class="cc-card-foot"><span>${c.incluir_no_calculo ? "No saldo e no disponível" : "Fora do cálculo"}</span><span>${c.origem === "pluggy" ? "Banco conectado" : "Manual"}</span></div></div>
   <div class="cc-acoes"><button type="button" class="cc-secundario" data-acao="editar-conta" data-id="${c.id}">${icone("pencil", 18)}Editar nome e cálculo</button></div>
+  ${campoAnexos("conta", c.id)}
   ${secao("Lançamentos recentes", `<a href="#/lancamentos?conta=${c.id}" class="cc-small" style="color:var(--cc-currency)">Ver todos</a>`)}
   ${lista(ls.map(linhaLancamento), "Nenhum lançamento.")}`;
 }
@@ -150,6 +154,7 @@ function formConta(c) {
     ${campo("Tipo", `<select name="tipo">${opcoes([["corrente", "Conta corrente"], ["poupanca", "Poupança"], ["carteira", "Dinheiro em espécie"], ["investimento", "Investimento"]], c?.tipo)}</select>`)}
     ${campo("Saldo inicial (R$)", entradaValor("saldo", c?.saldo_inicial_centavos ?? 0), "Antes dos lançamentos que você registrar. Use - para negativo.")}`}
     ${c?.tipo === "cartao" ? "" : `<label class="cc-interruptor"><span>Incluir no saldo e no disponível</span><input type="checkbox" name="incluir" ${!c || c.incluir_no_calculo ? "checked" : ""}></label>`}
+    ${campoAnexos("conta", c?.id)}
     <div class="cc-acoes"><button class="cc-primary" type="submit">Salvar</button>${c && !doBanco ? `<button type="button" class="cc-perigo" data-acao="arquivar-conta" data-id="${c.id}">Arquivar conta (mantém o histórico)</button>` : ""}</div>
   </form>`);
   const form = f.querySelector("form");
@@ -166,6 +171,7 @@ function formConta(c) {
     }
     const ok = c ? await atualizar("contas", c.id, reg) : await inserir("contas", reg);
     if (!ok) return;
+    if (!c) await salvarAnexosPendentes("conta", ok.id);
     fecharFolha(); avisar("Conta salva."); await recarregar();
   });
 }
@@ -247,13 +253,14 @@ export function telaPessoa(id, q = {}) {
   ${acertos.filter((a) => a.situacao === "aberto").map(bloco).join("") || lista([], "Nenhum acerto em aberto.")}
   ${acertos.some((a) => a.situacao !== "aberto") ? secao("Quitados") + acertos.filter((a) => a.situacao !== "aberto").map(bloco).join("") : ""}
   <div class="cc-acoes"><button type="button" class="cc-secundario" data-acao="novo-acerto" data-pessoa="${p.id}">${icone("plus", 18)}Nova dívida ou empréstimo com ${esc(p.nome)}</button>
+  ${campoAnexos("pessoa", p.id)}
   <button type="button" class="cc-secundario" data-acao="editar-pessoa" data-id="${p.id}">${icone("pencil", 18)}Editar dados de ${esc(p.nome)}</button>
   <button type="button" class="cc-text-button" data-acao="ir" data-rota="lancamentos?pessoa=${p.id}">Ver lançamentos ligados a ${esc(p.nome)}</button></div>`;
 }
 function formPessoa(aoCriar, p = null) {
   const d = estado.d;
   const temVinculo = p && (d.acertos.some((a) => a.pessoa_id === p.id) || d.cotas.some((c) => c.pessoa_id === p.id) || d.rachas.some((r) => r.pagador_pessoa_id === p.id));
-  const f = abrirFolha(p ? `Editar ${p.nome}` : "Nova pessoa", `<form novalidate>${campo("Nome", `<input name="nome" maxlength="60" autocomplete="off" value="${esc(p?.nome || "")}">`)}${campo("Contato", `<input name="contato" maxlength="80" placeholder="telefone ou e-mail (opcional)" value="${esc(p?.contato || "")}">`)}${campo("Observações", `<textarea name="observacoes" maxlength="500" placeholder="Ex.: Pix dela, combinados, apelido">${esc(p?.observacoes || "")}</textarea>`)}<div class="cc-acoes"><button class="cc-primary" type="submit">Salvar</button>${p ? (temVinculo ? `<p class="cc-small">Para apagar, primeiro apague os acertos e rachas ligados a ${esc(p.nome)}.</p>` : `<button type="button" class="cc-perigo" data-acao="apagar-pessoa" data-id="${p.id}">Apagar pessoa</button>`) : ""}</div></form>`);
+  const f = abrirFolha(p ? `Editar ${p.nome}` : "Nova pessoa", `<form novalidate>${campo("Nome", `<input name="nome" maxlength="60" autocomplete="off" value="${esc(p?.nome || "")}">`)}${campo("Contato", `<input name="contato" maxlength="80" placeholder="telefone ou e-mail (opcional)" value="${esc(p?.contato || "")}">`)}${campo("Observações", `<textarea name="observacoes" maxlength="500" placeholder="Ex.: Pix dela, combinados, apelido">${esc(p?.observacoes || "")}</textarea>`)}${campoAnexos("pessoa", p?.id)}<div class="cc-acoes"><button class="cc-primary" type="submit">Salvar</button>${p ? (temVinculo ? `<p class="cc-small">Para apagar, primeiro apague os acertos e rachas ligados a ${esc(p.nome)}.</p>` : `<button type="button" class="cc-perigo" data-acao="apagar-pessoa" data-id="${p.id}">Apagar pessoa</button>`) : ""}</div></form>`);
   const form = f.querySelector("form");
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -263,6 +270,7 @@ function formPessoa(aoCriar, p = null) {
     const reg = { nome, contato: form.contato.value.trim() || null, observacoes: form.observacoes.value.trim() || null };
     const r = p ? await atualizar("pessoas", p.id, reg) : await inserir("pessoas", reg);
     if (!r) return;
+    if (!p) await salvarAnexosPendentes("pessoa", r.id);
     fecharFolha(); await recarregar(); aoCriar && !p ? aoCriar(r) : avisar("Pessoa salva.");
   });
 }
@@ -281,6 +289,7 @@ function formAcerto(pessoaId, ac = null) {
     ${campo("Primeiro vencimento", `<input type="date" name="primeira" value="${psAtual[0]?.vencimento || hoje()}">`, "As parcelas seguintes ficam no mesmo dia, mês a mês. Sem data, a dívida conta como devida agora até você marcar uma data.")}
     ${pago ? `<p class="cc-small" style="margin-bottom:10px">Já ${ac.direcao === "me_deve" ? "recebido" : "pago"}: ${dinheiro(pago)}. Os pagamentos continuam valendo e abatem as primeiras parcelas.</p>` : ""}
     ${campo("Observações", `<textarea name="observacoes" maxlength="500">${esc(ac?.observacoes || "")}</textarea>`)}
+    ${campoAnexos("acerto", ac?.id)}
     <div class="cc-acoes"><button class="cc-primary" type="submit">Salvar</button></div></form>`);
   const form = f.querySelector("form");
   let direcao = ac?.direcao || "eu_devo";
@@ -297,7 +306,7 @@ function formAcerto(pessoaId, ac = null) {
     const reg = { pessoa_id: form.pessoa.value, direcao, descricao: form.descricao.value.trim(), valor_total_centavos: v, observacoes: form.observacoes.value.trim() || null };
     let alvo = ac;
     if (ac) { reg.situacao = v === pago ? "quitado" : "aberto"; if (!(await atualizar("acertos", ac.id, reg))) return; }
-    else { alvo = await inserir("acertos", reg); if (!alvo) return; }
+    else { alvo = await inserir("acertos", reg); if (!alvo) return; await salvarAnexosPendentes("acerto", alvo.id); }
     // Refaz o calendário de parcelas (os pagamentos ficam e abatem as primeiras)
     const novas = sem ? [] : gerarParcelas(v, n, form.primeira.value);
     const iguais = ac && novas.length === psAtual.length && novas.every((p, i) => p.vencimento === psAtual[i].vencimento && p.valor_centavos === psAtual[i].valor_centavos);
@@ -314,6 +323,7 @@ function formPagamento(a) {
     <p class="cc-small" style="margin-bottom:12px">${esc(pessoa(a.pessoa_id)?.nome)} · ${esc(a.descricao)} · restante ${dinheiro(r)}</p>
     <div class="cc-grade-campos">${campo("Valor (R$)", entradaValor("valor", r))}${campo("Data", `<input type="date" name="data" value="${hoje()}">`)}</div>
     ${campo("Observações", `<input name="observacoes" maxlength="120">`, "Pode ser um valor parcial.")}
+    ${campoAnexos("pagamento", null)}
     <div class="cc-acoes"><button class="cc-primary" type="submit">Salvar</button></div></form>`);
   const form = f.querySelector("form");
   form.addEventListener("submit", async (e) => {
@@ -321,7 +331,9 @@ function formPagamento(a) {
     const v = paraCentavos(form.valor.value);
     if (!v || v <= 0) return erroForm(form, "Informe um valor maior que zero.");
     if (v > r) return erroForm(form, `O valor passa do restante (${dinheiro(r)}).`);
-    if (!(await inserir("acerto_pagamentos", { acerto_id: a.id, data: form.data.value || hoje(), valor_centavos: v, observacoes: form.observacoes.value.trim() || null }))) return;
+    const pg = await inserir("acerto_pagamentos", { acerto_id: a.id, data: form.data.value || hoje(), valor_centavos: v, observacoes: form.observacoes.value.trim() || null });
+    if (!pg) return;
+    await salvarAnexosPendentes("pagamento", pg.id);
     if (v === r) await atualizar("acertos", a.id, { situacao: "quitado" });
     fecharFolha(); if (v === r) carimbar("Quitado"); else avisar("Pagamento parcial registrado."); await recarregar();
   });
@@ -334,6 +346,7 @@ function detalheAcerto(a) {
     ${ps.length ? secao("Parcelas") + lista(ps.map((p) => linha({ titulo: `${p.numero}ª · ${dataBR(p.vencimento)}`, sub: p.restante_centavos === 0 ? "paga" : p.pago_centavos ? `pago ${dinheiro(p.pago_centavos)}` : "em aberto", valor: dinheiro(p.valor_centavos) }))) : ""}
     ${secao("Pagamentos")}${lista(pags.map((p) => linha({ titulo: dataBR(p.data), sub: esc(p.observacoes || ""), valor: dinheiro(p.valor_centavos), acao: "apagar-pagamento", attrs: `data-id="${p.id}" data-acerto="${a.id}" aria-label="Apagar pagamento de ${dataBR(p.data)}"` })), "Nenhum pagamento ainda.")}
     <p class="cc-small" style="margin-top:8px">Toque num pagamento para apagar (dois toques).</p>
+    ${campoAnexos("acerto", a.id)}
     <div class="cc-acoes"><button type="button" class="cc-secundario" data-acao="editar-acerto" data-id="${a.id}">${icone("pencil", 18)}Editar dívida</button>${a.situacao === "aberto" ? `<button type="button" class="cc-secundario" data-acao="perdoar-acerto" data-id="${a.id}">Marcar como encerrado sem pagamento</button>` : `<button type="button" class="cc-secundario" data-acao="reabrir-acerto" data-id="${a.id}">Reabrir</button>`}
     <button type="button" class="cc-perigo" data-acao="apagar-acerto" data-id="${a.id}">Apagar este acerto</button></div>`);
 }
@@ -353,6 +366,7 @@ function formRacha(lancId = null) {
     <div id="participantes">${[["", "Eu"], ...d.pessoas.map((p) => [p.id, p.nome])].map(([id, nome]) => `<div class="cc-participante"><label><input type="checkbox" data-part="${id}" ${id === "" ? "checked" : ""}>${esc(nome)}</label><input type="text" inputmode="decimal" data-cota="${id}" aria-label="Cota de ${esc(nome)}" placeholder="—" readonly></div>`).join("")}</div>
     <p class="cc-small" id="resumo-cotas" style="margin-top:10px"></p>
     ${campo("Prazo para acertar", `<input type="date" name="prazo">`, "opcional")}
+    ${campoAnexos("racha", null)}
     <div class="cc-acoes"><button class="cc-primary" type="submit">Salvar racha</button><button type="button" class="cc-text-button" data-acao="nova-pessoa-racha">${icone("plus", 15)}Cadastrar outra pessoa</button></div>
   </form>`);
   const form = f.querySelector("form");
@@ -399,6 +413,7 @@ function formRacha(lancId = null) {
     if (!cotas || cotas.reduce((s, c) => s + c.cota, 0) !== total) return erroForm(form, metodo === "percentual" ? "Os percentuais precisam somar 100." : "As cotas precisam somar o valor total.");
     const r = await inserir("rachas", { ocasiao: form.ocasiao.value.trim(), data: form.data.value || hoje(), valor_total_centavos: total, pagador_pessoa_id: pagador, metodo, lancamento_id: form.lancamento.value || null, prazo: form.prazo.value || null });
     if (!r) return;
+    await salvarAnexosPendentes("racha", r.id);
     if (!(await inserirVarios("racha_cotas", cotas.map((c) => ({ racha_id: r.id, pessoa_id: c.id || null, cota_centavos: c.cota, percentual: c.percentual ?? null }))))) return;
     // Gera os acertos: se eu paguei, cada pessoa me deve a cota dela; se outra pessoa pagou, eu devo a minha a ela
     const acertos = pagador ? [{ pessoa_id: pagador, direcao: "eu_devo", descricao: `Racha: ${r.ocasiao}`, valor_total_centavos: cotas.find((c) => c.id === "").cota, racha_id: r.id }]
@@ -752,6 +767,7 @@ registrar({
     abrirFolha(r.ocasiao, `<p class="cc-small" style="margin-bottom:10px">${dataBR(r.data)} · ${dinheiro(r.valor_total_centavos)} · pago por ${r.pagador_pessoa_id ? esc(pessoa(r.pagador_pessoa_id)?.nome) : "você"} · divisão ${{ igual: "igual", percentual: "por percentual", valor: "por valor", uma_pessoa: "uma pessoa paga tudo" }[r.metodo]}</p>
       ${lista(cs.map((c) => linha({ titulo: c.pessoa_id ? esc(pessoa(c.pessoa_id)?.nome) : "Você", sub: c.percentual ? `${String(c.percentual).replace(".", ",")}%` : "", valor: dinheiro(c.cota_centavos) })))}
       ${l ? secao("Saída original no banco") + lista([linhaLancamento(l)]) : ""}
+      ${campoAnexos("racha", r.id)}
       <div class="cc-acoes"><button type="button" class="cc-perigo" data-acao="apagar-racha" data-id="${r.id}">Apagar racha e acertos gerados</button></div>`);
   },
   "apagar-racha": async (el) => { if (!confirmarDuplo(el, "Toque de novo para apagar")) return; if (await apagar("rachas", el.dataset.id)) { fecharFolha(); avisar("Racha apagado."); await recarregar(); } },

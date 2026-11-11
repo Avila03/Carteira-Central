@@ -1,3 +1,4 @@
+import { campoAnexos, salvarAnexosPendentes } from "./anexos.js";
 import { carimbar } from "./marca.js";
 import { estado, icone, dinheiro, dataBR, dataCurta, mesCurto, mesLongo, esc, hoje, titulo, secao, lista, linha, selo, segmento, campo, entradaValor, opcoes, erroForm, paraCentavos, abrirFolha, fecharFolha, avisar, confirmarDuplo, registrar, conta, categoria, logoCompromisso, logoBanco, dominioServico, pct } from "./base.js";
 import { agenda, ocorrencias, somaDias, somaMeses, diasNoMes, faturasPrevistas, parcelasComSaldo, simularCompra, compromissoDaSimulacao, dividirIgual, ENTRADAS, resumoInicio, diffDias } from "./calculos.js";
@@ -153,6 +154,7 @@ export function telaCompromisso(id) {
   ${secao("Ocorrências", "<span>toque para marcar</span>")}
   ${lista(ocs.map((o) => linha({ titulo: dataBR(o.data), sub: selo(nomeSituacao[o.situacao], o.situacao).replace('class="cc-selo', 'style="margin-left:0" class="cc-selo') + (o.baixa?.lancamento_id ? " · ligado a um lançamento" : ""), valor: dinheiro(o.valor), acao: "baixar", attrs: `data-id="${c.id}" data-ref="${o.data}"` })), "Sem ocorrências neste período.")}
   ${c.observacoes ? `<p class="cc-info"><strong>Observações</strong>${esc(c.observacoes)}</p>` : ""}
+  ${campoAnexos("compromisso", c.id)}
   <p class="cc-info"><strong>Cancelar aqui não cancela no fornecedor</strong>Marcar como cancelado tira das previsões e mantém o histórico. O cancelamento junto à empresa continua sendo com você.</p>
   <div class="cc-acoes"><button type="button" class="cc-primary" data-acao="editar-compromisso" data-id="${c.id}">${icone("pencil", 18)}Editar</button>
   ${c.situacao === "cancelado" ? `<button type="button" class="cc-secundario" data-acao="reativar-compromisso" data-id="${c.id}">Reativar</button>` : `<button type="button" class="cc-perigo" data-acao="cancelar-compromisso" data-id="${c.id}">Marcar como cancelado</button>`}</div>`;
@@ -199,6 +201,7 @@ function formCompromisso(c, padrao = {}) {
     ${tipo === "assinatura" ? campo("Site do serviço", `<input name="dominio" autocapitalize="none" placeholder="netflix.com" value="${esc(c?.dominio || "")}">`, "Usado só para mostrar o logotipo oficial.") + campo("Lembrar antes da cobrança", `<select name="lembrete">${opcoes([["", "Não lembrar"], [1, "1 dia antes"], [3, "3 dias antes"], [7, "7 dias antes"]], c?.lembrete_dias ?? "")}</select>`) : ""}
     ${tipo === "assinatura" || tipo === "fixo" ? secaoRateio(c) : ""}
     ${campo("Observações", `<textarea name="observacoes" maxlength="500">${esc(c?.observacoes || "")}</textarea>`, tipo === "assinatura" ? "Anote fim de desconto ou de teste grátis." : "")}
+    ${campoAnexos("compromisso", c?.id)}
     <div class="cc-acoes"><button class="cc-primary" type="submit">Salvar</button>${c ? `<button type="button" class="cc-perigo" data-acao="apagar-compromisso" data-id="${c.id}">Apagar de vez (sem histórico)</button>` : ""}</div>
   </form>`);
   const form = f.querySelector("form");
@@ -220,6 +223,7 @@ function formCompromisso(c, padrao = {}) {
     if (rat) { reg.rateio_desde = cotas.length ? (form.desde.value || hoje()) : null; reg.rateio_metodo = cotas.length ? rat.metodo() : null; }
     const ok = c ? await atualizar("compromissos", c.id, reg) : await inserir("compromissos", reg);
     if (!ok) return;
+    if (!c) await salvarAnexosPendentes("compromisso", ok.id);
     if (rat) {
       const id = c?.id || ok.id;
       const { error } = await sb.from("compromisso_rateios").delete().eq("compromisso_id", id);
@@ -276,6 +280,7 @@ function formObjetivo(o) {
     ${campo("Link", `<input name="link" type="url" inputmode="url" autocapitalize="none" placeholder="https://" value="${esc(o?.link || "")}">`, "para desejos")}
     ${campo("Prioridade", `<select name="prioridade">${opcoes([["", "Sem prioridade"], [1, "Alta"], [2, "Média"], [3, "Baixa"]], o?.prioridade ?? "")}</select>`)}
     ${o ? `<label class="cc-interruptor"><span>Concluído</span><input type="checkbox" name="concluido" ${o.situacao === "concluido" ? "checked" : ""}></label>` : ""}
+    ${campoAnexos("objetivo", o?.id)}
     <div class="cc-acoes"><button class="cc-primary" type="submit">Salvar</button>${o?.link ? `<a class="cc-secundario" href="${esc(o.link)}" target="_blank" rel="noopener noreferrer">${icone("external-link", 18)}Abrir link</a>` : ""}${o ? `<button type="button" class="cc-perigo" data-acao="arquivar-objetivo" data-id="${o.id}">Arquivar</button>` : ""}</div>
   </form>`);
   const form = f.querySelector("form");
@@ -292,6 +297,7 @@ function formObjetivo(o) {
       situacao: form.concluido?.checked ? "concluido" : "ativo" };
     const ok = o ? await atualizar("objetivos", o.id, reg) : await inserir("objetivos", reg);
     if (!ok) return;
+    if (!o) await salvarAnexosPendentes("objetivo", ok.id);
     fecharFolha(); avisar("Objetivo salvo."); await recarregar();
   });
 }
@@ -308,6 +314,7 @@ function formBaixa(c, ref) {
     ${campo("O que aconteceu", `<select name="situacao">${opcoes([[entrada ? "recebido" : "pago", entrada ? "Recebido" : "Pago"], ["ignorado", "Não vai acontecer (ignorar)"], ["", "Ainda previsto (desfazer)"]], b?.situacao ?? (entrada ? "recebido" : "pago"))}</select>`)}
     <div class="cc-grade-campos">${campo("Valor real (R$)", entradaValor("valor", b?.valor_centavos ?? c.valor_centavos))}${campo("Data", `<input type="date" name="data" value="${b?.data_efetiva || (ref <= h ? ref : h)}">`)}</div>
     ${campo("Ligar a um lançamento do banco", `<select name="lancamento"><option value="">Nenhum</option>${opcoes(sugestoes.map((l) => [l.id, `${dataBR(l.data)} · ${l.descricao.slice(0, 28)} · ${dinheiro(l.valor_centavos)}`]), b?.lancamento_id)}</select>`, sugestoes.length ? "Ligar evita contar a mesma coisa duas vezes." : "Nenhum lançamento parecido encontrado perto desta data.")}
+    ${campoAnexos("baixa", b?.id)}
     <div class="cc-acoes"><button class="cc-primary" type="submit">Salvar</button></div>
   </form>`);
   const form = f.querySelector("form");
@@ -323,6 +330,7 @@ function formBaixa(c, ref) {
     const reg = { compromisso_id: c.id, referencia: ref, situacao: form.situacao.value, valor_centavos: v, data_efetiva: form.data.value || null, lancamento_id: form.lancamento.value || null };
     const ok = b ? await atualizar("compromisso_baixas", b.id, reg) : await inserir("compromisso_baixas", reg);
     if (!ok) return;
+    if (!b) await salvarAnexosPendentes("baixa", ok.id);
     if (reg.lancamento_id) await atualizar("lancamentos", reg.lancamento_id, { compromisso_id: c.id });
     fecharFolha(); if (reg.situacao === "pago" || reg.situacao === "recebido") carimbar(reg.situacao === "pago" ? "Pago" : "Recebido"); else avisar("Ocorrência atualizada."); await recarregar();
   });

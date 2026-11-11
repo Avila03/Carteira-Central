@@ -1,6 +1,6 @@
 // Guarda só a "casca" do aplicativo para abrir sem rede. Dados financeiros nunca ficam em cache aqui.
-const CACHE = "casca-v12";
-const CASCA = ["/", "/css/tokens.css", "/css/components.css", "/css/app.css", "/js/app.js", "/js/base.js", "/js/dados.js", "/js/calculos.js", "/js/icones.js", "/js/marca.js",
+const CACHE = "casca-v13";
+const CASCA = ["/", "/css/tokens.css", "/css/components.css", "/css/app.css", "/js/app.js", "/js/base.js", "/js/dados.js", "/js/calculos.js", "/js/icones.js", "/js/marca.js", "/js/anexos.js",
   "/js/tela-inicio.js", "/js/tela-cartoes.js", "/js/tela-planejar.js", "/js/tela-mais.js",
   "/assets/monograma.svg", "/assets/marca-horizontal.svg", "/assets/padrao.svg", "/assets/apple-touch-icon.png", "/manifest.webmanifest"];
 self.addEventListener("install", (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(CASCA)).then(() => self.skipWaiting())); });

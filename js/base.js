@@ -105,6 +105,7 @@ export function abrirFolha(titulo, corpo, aoAbrir) {
   raiz.appendChild(fundo); raiz.appendChild(folha);
   document.body.style.overflow = "hidden";
   aoAbrir?.(folha);
+  document.dispatchEvent(new CustomEvent("folha-aberta", { detail: folha }));
   folha.querySelector("input, select, textarea, button:not([data-acao=fechar-folha])")?.focus({ preventScroll: true });
   return folha;
 }

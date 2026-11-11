@@ -1,6 +1,7 @@
 import { sb, estado, icone, esc, acoes, gravarLocal, fecharFolha, avisar, erroForm, campo } from "./base.js";
 import { carregarTudo, salvarPrefs } from "./dados.js";
 import { ICONES_NAV, moedaCC } from "./marca.js";
+import { carregarMiniaturas } from "./anexos.js";
 import { telaInicio, telaComposicao } from "./tela-inicio.js";
 import { telaCartoes } from "./tela-cartoes.js";
 import { telaPlanejar, telaCompromisso, simularEnvio, gerarCobrancasRateio } from "./tela-planejar.js";
@@ -75,6 +76,7 @@ export function desenhar() {
   desenhando = false;
   if (estado.ocultar) gravarOcultos(app);
   if (rota.tela === "configuracoes") atualizarBlocoPush();
+  carregarMiniaturas(app);
   fecharAbertura();
   document.title = `${document.querySelector(".cc-main h1")?.textContent || "Início"} · Carteira Central`;
 }

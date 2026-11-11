@@ -315,3 +315,21 @@ body { min-height: 100dvh; }
 .cc-theme .cc-header::before { display: none; }
 .cc-theme .cc-cedula-roseta { display: none; }
 .cc-theme .cc-grade2 .cc-stat strong { font-family: var(--cc-serif-num); font-weight: 500; font-variant-numeric: lining-nums tabular-nums; }
+
+/* Anexos: links e fotos */
+.cc-theme .cc-anexos { border: 1px dashed var(--cc-line); border-radius: 14px; padding: 12px; margin: 12px 0; }
+.cc-theme .cc-anexos-titulo { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--cc-gold); margin-bottom: 8px; }
+.cc-theme .cc-anexos-lista { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+.cc-theme .cc-anexo { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 0 0 4px; border-radius: 10px; background: var(--cc-surface); }
+.cc-theme .cc-anexo a { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; color: var(--cc-currency); text-decoration: none; font-size: 14px; }
+.cc-theme .cc-anexo a span, .cc-theme .cc-anexo.foto > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cc-theme .cc-anexo.foto > span { flex: 1; min-width: 0; font-size: 14px; }
+.cc-theme .cc-anexo-mini { width: 44px; height: 44px; border-radius: 8px; overflow: hidden; padding: 0; border: 1px solid var(--cc-line); background: var(--cc-surface-raised); cursor: pointer; flex: none; }
+.cc-theme .cc-anexo-mini img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cc-theme .cc-anexos-botoes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.cc-theme .cc-anexos-botoes > * { margin: 0; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; }
+.cc-theme .cc-anexo-novo { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+.cc-theme .cc-anexo-novo input { min-height: 44px; font-size: 16px; border-radius: 12px; border: 1px solid var(--cc-line); background: var(--cc-surface); color: var(--cc-ivory); padding: 0 12px; }
+.cc-anexo-tela { position: fixed; inset: 0; z-index: 95; background: rgba(4,8,6,.94); display: grid; place-items: center; padding: max(20px, env(safe-area-inset-top)) 12px max(20px, env(safe-area-inset-bottom)); }
+.cc-anexo-tela img { max-width: 100%; max-height: 100%; border-radius: 8px; }
+.cc-anexo-tela button { position: absolute; top: max(14px, env(safe-area-inset-top)); right: 14px; color: #F0EBDD; }
