@@ -7,6 +7,8 @@ import { recarregar, ir, aplicarTema } from "./app.js";
 const ORIGEM = { manual: "Manual", pluggy: "Banco", importacao: "Importado" };
 const SITUACAO = { efetivado: "", pendente: "Pendente no banco", futuro: "Parcela futura" };
 
+// Categorias que você dispensou de revisar (lançamentos anteriores ao início do uso)
+const catDispensada = (id) => estado.d.decisoes.some((x) => x.chave === "cat:" + id);
 // ---------- Mais ----------
 export const ITENS_MAIS = [
   ["planejar", "Planejar", "calendar-days", "Calendário, salário, fixos, metas e simulações"],
@@ -20,7 +22,7 @@ export const ITENS_MAIS = [
 ];
 export function telaMais() {
   const d = estado.d;
-  const pend = d.decisoes.filter((x) => x.decisao === "verificar").length + sugerirDuplicidades(d).length + sugerirTransferencias(d).length + d.lancamentos.filter((l) => !l.categoria_id && l.natureza === "normal" && l.situacao !== "futuro").length;
+  const pend = d.decisoes.filter((x) => x.decisao === "verificar").length + sugerirDuplicidades(d).length + sugerirTransferencias(d).length + d.lancamentos.filter((l) => !l.categoria_id && l.natureza === "normal" && l.situacao !== "futuro" && !catDispensada(l.id)).length;
   return `${titulo("Mais opções", "Mais")}
   ${lista(ITENS_MAIS.map(([r, t, ic, sub]) => linha({ esquerda: `<span class="cc-ic">${icone(ic, 18)}</span>`, titulo: t + (r === "revisao" && pend ? selo(String(pend), "previsto") : ""), sub, acao: "ir", attrs: `data-rota="${r}"` })))}
   <p class="cc-account-line">Carteira Central · uso pessoal e privado</p>`;
@@ -456,7 +458,7 @@ async function marcarRev(ids, decisao) {
 export function telaRevisao() {
   const d = estado.d, h = hoje();
   const dups = sugerirDuplicidades(d).slice(0, 20), transf = sugerirTransferencias(d).slice(0, 20), sug = sugerirAssinaturas(d, h);
-  const semCat = d.lancamentos.filter((l) => !l.categoria_id && l.natureza === "normal" && l.situacao !== "futuro");
+  const semCat = d.lancamentos.filter((l) => !l.categoria_id && l.natureza === "normal" && l.situacao !== "futuro" && !catDispensada(l.id));
   const par = (a, b, txt) => `<div class="cc-card" style="padding:14px"><p class="cc-small" style="margin-bottom:6px">${txt}</p>${lista([linhaLancamento(a), linhaLancamento(b)])}`;
   const marcados = new Map(d.decisoes.filter((x) => x.chave.startsWith("rev:")).map((x) => [x.chave.slice(4), x.decisao]));
   const emRacha = new Set(d.rachas.map((r) => r.lancamento_id).filter(Boolean));

@@ -230,7 +230,7 @@ body { min-height: 100dvh; }
   padding: 26px 20px 18px; margin-bottom: 12px; border-radius: 16px; border: 1px solid #8C7A4E;
   background: radial-gradient(120% 140% at 85% 30%, #2A6143 0%, #1A3D2A 45%, #10241A 100%);
   box-shadow: inset 0 0 0 5px #10241A, inset 0 0 0 6px rgba(182,154,96,.55), 0 14px 30px rgba(0,0,0,.35); }
-.cc-theme .cc-cedula::before { content: ''; position: absolute; inset: 0; z-index: -1; background-image: var(--cc-pattern); background-size: 560px 180px; background-position: -90px 58%; opacity: .32; mix-blend-mode: screen; }
+/* sem gravura em espiral na cédula */
 .cc-theme .cc-cedula-micro { position: absolute; left: 12px; right: 12px; top: 9px; font-size: 6.5px; letter-spacing: 1.6px; white-space: nowrap; overflow: hidden; color: var(--cc-gold); opacity: .75; font-family: var(--cc-brand); }
 .cc-theme .cc-cedula-topo { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; position: relative; }
 .cc-theme .cc-cedula-rotulo { font-size: 13px; color: #DCE6D2; }
@@ -310,3 +310,8 @@ body { min-height: 100dvh; }
 /* Telas vazias ilustradas */
 .cc-theme .cc-vazio { display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .cc-theme .cc-ilustra { width: 96px; height: 67px; color: var(--cc-gold); opacity: .8; }
+
+/* Cabeçalho sem a gravura em espiral */
+.cc-theme .cc-header::before { display: none; }
+.cc-theme .cc-cedula-roseta { display: none; }
+.cc-theme .cc-grade2 .cc-stat strong { font-family: var(--cc-serif-num); font-weight: 500; font-variant-numeric: lining-nums tabular-nums; }

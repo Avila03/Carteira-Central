@@ -1,5 +1,5 @@
 // Guarda só a "casca" do aplicativo para abrir sem rede. Dados financeiros nunca ficam em cache aqui.
-const CACHE = "casca-v8";
+const CACHE = "casca-v9";
 const CASCA = ["/", "/css/tokens.css", "/css/components.css", "/css/app.css", "/js/app.js", "/js/base.js", "/js/dados.js", "/js/calculos.js", "/js/icones.js", "/js/marca.js",
   "/js/tela-inicio.js", "/js/tela-cartoes.js", "/js/tela-planejar.js", "/js/tela-mais.js",
   "/assets/monograma.svg", "/assets/marca-horizontal.svg", "/assets/padrao.svg", "/assets/apple-touch-icon.png", "/manifest.webmanifest"];

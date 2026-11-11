@@ -104,21 +104,17 @@ export function telaInicio() {
 
   return `<div class="cc-saudacao"><p>${dataPorExtenso()}</p><h1>${saudacao()}${nome ? `, ${esc(nome)}` : ""}</h1></div>
   ${av.map((a) => `<button type="button" class="cc-aviso ${a.tipo === "erro" ? "erro" : ""}" data-acao="ir" data-rota="${a.rota}">${icone(a.tipo === "erro" ? "triangle-alert" : "bell", 18)}<span>${a.texto}</span></button>`).join("")}
-  <button type="button" class="cc-cedula" data-acao="ir" data-rota="composicao/disponivel" aria-label="Disponível estimado: ${dinheiro(r.disponivel)}. Ver composição.">
+  <button type="button" class="cc-cedula" data-acao="ir" data-rota="composicao/saldo" aria-label="Saldo atual: ${dinheiro(r.saldo)}. Ver composição.">
     <span class="cc-cedula-micro" aria-hidden="true">${microtexto(nome)}</span>
-    <span class="cc-cedula-topo"><span class="cc-cedula-rotulo">Disponível até ${r.semSalario ? "o fim do mês" : `o salário · ${dataCurta(r.horizonte)}`}</span><span class="cc-cedula-serie" aria-hidden="true">Nº ${serie}</span></span>
-    <strong class="cc-cedula-valor">${dinheiro(r.disponivel)}</strong>
-    <span class="cc-cedula-conta">saldo ${dinheiro(r.saldo)} − compromissos ${dinheiro(r.compromissos)}${r.reservas ? ` − reservas ${dinheiro(r.reservas)}` : ""}</span>
+    <span class="cc-cedula-topo"><span class="cc-cedula-rotulo">Saldo atual</span><span class="cc-cedula-serie" aria-hidden="true">Nº ${serie}</span></span>
+    <strong class="cc-cedula-valor">${dinheiro(r.saldo)}</strong>
+    <span class="cc-cedula-conta">${r.consideradas.length} conta(s) no cálculo${dadosEm ? ` · dados do banco de ${dataHoraBR(dadosEm)}` : ""}</span>
     <img class="cc-cedula-marca" src="/assets/monograma.svg" alt="" aria-hidden="true">
-    <span class="cc-cedula-roseta" aria-hidden="true"></span>
   </button>
-  <div class="cc-grade3">
-    <button type="button" class="cc-stat" data-acao="ir" data-rota="composicao/saldo"><span>Saldo</span><strong class="cc-num">${dinheiro(r.saldo)}</strong><small class="cc-small">${r.consideradas.length} conta(s)</small></button>
-    <button type="button" class="cc-stat" data-acao="ir" data-rota="composicao/compromissos"><span>Compromissos</span><strong class="cc-num">${dinheiro(r.compromissos)}</strong><small class="cc-small">até ${dataCurta(r.horizonte)}</small></button>
-    <button type="button" class="cc-stat cc-areceber" data-acao="ir" data-rota="composicao/receber"><span>A receber</span><strong class="cc-num">${dinheiro(r.aReceber)}</strong><small class="cc-small">fora do disponível</small></button>
+  <div class="cc-grade2">
+    <button type="button" class="cc-stat" data-acao="ir" data-rota="composicao/compromissos"><span>Compromissos</span><strong class="cc-num">${dinheiro(r.compromissos)}</strong><small class="cc-small">até ${dataCurta(r.horizonte)} · ${r.compItens.length} item(ns)</small></button>
+    <button type="button" class="cc-stat cc-areceber" data-acao="ir" data-rota="composicao/receber"><span>A receber</span><strong class="cc-num">${dinheiro(r.aReceber)}</strong><small class="cc-small">previsto</small></button>
   </div>
-  <p class="cc-small" style="margin:-4px 0 4px">${dadosEm ? `Dados do banco de ${dataHoraBR(dadosEm)}` : ""}${r.semSalario ? `${dadosEm ? " · " : ""}cadastre o salário em Planejar para usar a data dele` : ""}</p>
-  <button type="button" class="cc-text-button" data-acao="ir" data-rota="composicao/disponivel">Entender meu disponível ${icone("chevron-right", 15)}</button>
 
   ${secao("Índices")}
   <div class="cc-indices">
