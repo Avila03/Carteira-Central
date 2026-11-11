@@ -57,6 +57,7 @@ export const BANCOS = {
   neon: { nome: "Neon", cor: "#009FB3", cor2: "#063B49", dominio: "neon.com.br" },
   nubank: { nome: "Nubank", cor: "#820AD1", cor2: "#2E0450", dominio: "nubank.com.br" },
   bb: { nome: "Banco do Brasil", cor: "#2A4FA8", cor2: "#0B1E4A", dominio: "bb.com.br" },
+  especie: { nome: "Dinheiro em espécie", cor: "#2F6B45", cor2: "#10241A", dominio: "", desenho: true },
   outro: { nome: "Outro", cor: "#214E34", cor2: "#0B1A12", dominio: "" },
 };
 // Domínios de serviços conhecidos, para carregar o logotipo oficial do site
@@ -82,7 +83,24 @@ export function logo(dominio, texto, { redondo = false, tam = 36 } = {}) {
   const img = dominio ? `<img src="https://www.google.com/s2/favicons?domain=${encodeURIComponent(dominio)}&sz=128" alt="" loading="lazy" referrerpolicy="no-referrer">` : "";
   return `<span class="cc-logo${redondo ? " redondo" : ""}" style="width:${tam}px;height:${tam}px" aria-hidden="true">${esc(iniciais(texto))}${img}</span>`;
 }
-export const logoBanco = (banco, opts) => logo(BANCOS[banco]?.dominio, BANCOS[banco]?.nome || "Banco", opts);
+// Ícone próprio da carteira (dinheiro em espécie): cédulas em leque com uma moeda dourada, no traço da gravura
+export const ICONE_ESPECIE = `<svg viewBox="0 0 48 48" width="100%" height="100%" aria-hidden="true">
+  <defs><linearGradient id="esp-f" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2F6B45"/><stop offset="1" stop-color="#10241A"/></linearGradient></defs>
+  <rect width="48" height="48" rx="11" fill="url(#esp-f)"/>
+  <rect x="1" y="1" width="46" height="46" rx="10" fill="none" stroke="#B69A60" stroke-opacity=".7"/>
+  <g transform="rotate(-14 22 22)"><rect x="7" y="13" width="28" height="16" rx="2" fill="#1A3D2A" stroke="#A8C686" stroke-width="1.2"/><path d="M10 21c3-2 6-2 9 0s6 2 9 0 4-1 5 0" fill="none" stroke="#A8C686" stroke-width=".7" opacity=".8"/></g>
+  <rect x="9" y="17" width="28" height="16" rx="2" fill="#F0EBDD"/>
+  <rect x="11" y="19" width="24" height="12" rx="1.2" fill="none" stroke="#214E34" stroke-width=".9"/>
+  <circle cx="23" cy="25" r="3.6" fill="none" stroke="#214E34" stroke-width="1.1"/>
+  <path d="M23 22.6v4.8M24.3 23.5c-.3-.4-.8-.6-1.3-.6-.8 0-1.3.4-1.3.9 0 1.3 2.7.6 2.7 2 0 .6-.6 1-1.4 1-.6 0-1.1-.2-1.4-.6" fill="none" stroke="#214E34" stroke-width=".8" stroke-linecap="round"/>
+  <circle cx="14" cy="25" r="1" fill="#214E34"/><circle cx="32" cy="25" r="1" fill="#214E34"/>
+  <circle cx="35" cy="34" r="7" fill="#B69A60" stroke="#E2C98A" stroke-width="1"/>
+  <circle cx="35" cy="34" r="4.6" fill="none" stroke="#7A6532" stroke-width=".9"/>
+  <circle cx="35" cy="34" r="2.6" fill="none" stroke="#7A6532" stroke-width=".7" stroke-dasharray=".9 .7"/><circle cx="35" cy="34" r="1" fill="#7A6532"/>
+</svg>`;
+export const logoBanco = (banco, { redondo = false, tam = 36 } = {}) => BANCOS[banco]?.desenho
+  ? `<span class="cc-logo cc-logo-desenho${redondo ? " redondo" : ""}" style="width:${tam}px;height:${tam}px" aria-hidden="true">${ICONE_ESPECIE}</span>`
+  : logo(BANCOS[banco]?.dominio, BANCOS[banco]?.nome || "Banco", { redondo, tam });
 // "portal.pucrs.br" vira "pucrs.br"; "app.empresa.com.br" vira "empresa.com.br" (o site principal costuma ter o logotipo)
 const dominioRaiz = (h) => { const p = h.toLowerCase().split("."); const n = /\.(com|net|org|gov|edu|art|blog|app)\.br$/.test(h) ? 3 : 2; return p.slice(-n).join("."); };
 // Anexos de um item (links e fotos), usados para o ícone e a marca de clipe nas listas

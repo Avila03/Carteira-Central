@@ -167,7 +167,7 @@ function formConta(c) {
     if (!doBanco) {
       const s = paraCentavos(form.saldo.value || "0");
       if (s === null) return erroForm(form, "Saldo inválido. Use o formato 1.234,56.");
-      Object.assign(reg, { banco: form.banco.value, tipo: form.tipo.value, saldo_inicial_centavos: s });
+      Object.assign(reg, { banco: form.tipo.value === "carteira" ? "especie" : form.banco.value, tipo: form.tipo.value, saldo_inicial_centavos: s });
     }
     const ok = c ? await atualizar("contas", c.id, reg) : await inserir("contas", reg);
     if (!ok) return;
