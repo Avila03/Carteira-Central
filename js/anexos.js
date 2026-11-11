@@ -31,13 +31,15 @@ function redesenhar(bloco) {
   bloco.querySelector(".cc-anexos-lista").innerHTML = listaHTML(bloco.dataset.anexoTipo, bloco.dataset.anexoId || null);
   carregarMiniaturas(bloco);
 }
+// Baixa a foto pelo próprio app (com seu login) e mostra a partir da memória do aparelho:
+// não depende de link externo, então nenhuma regra de segurança da página bloqueia a imagem.
 async function urlAssinada(caminho) {
-  const c = urlCache.get(caminho);
-  if (c && c.ate > Date.now()) return c.url;
-  const { data, error } = await sb.storage.from(BALDE).createSignedUrl(caminho, 3600);
-  if (error) return null;
-  urlCache.set(caminho, { url: data.signedUrl, ate: Date.now() + 50 * 60 * 1000 });
-  return data.signedUrl;
+  if (urlCache.has(caminho)) return urlCache.get(caminho);
+  const { data, error } = await sb.storage.from(BALDE).download(caminho);
+  if (error || !data) return null;
+  const u = URL.createObjectURL(data);
+  urlCache.set(caminho, u);
+  return u;
 }
 export async function carregarMiniaturas(raiz = document) {
   for (const img of raiz.querySelectorAll("img[data-caminho]")) { const u = await urlAssinada(img.dataset.caminho); if (u) img.src = u; }
