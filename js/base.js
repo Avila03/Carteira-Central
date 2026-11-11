@@ -83,6 +83,21 @@ export function logo(dominio, texto, { redondo = false, tam = 36 } = {}) {
   const img = dominio ? `<img src="https://www.google.com/s2/favicons?domain=${encodeURIComponent(dominio)}&sz=128" alt="" loading="lazy" referrerpolicy="no-referrer">` : "";
   return `<span class="cc-logo${redondo ? " redondo" : ""}" style="width:${tam}px;height:${tam}px" aria-hidden="true">${esc(iniciais(texto))}${img}</span>`;
 }
+// Ícone próprio do salário: envelope de pagamento com a cédula saindo e a moeda dourada com seta de entrada
+export const ICONE_SALARIO = `<svg viewBox="0 0 48 48" width="100%" height="100%" aria-hidden="true">
+  <defs><linearGradient id="sal-f" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2F6B45"/><stop offset="1" stop-color="#10241A"/></linearGradient></defs>
+  <rect width="48" height="48" rx="11" fill="url(#sal-f)"/>
+  <rect x="1" y="1" width="46" height="46" rx="10" fill="none" stroke="#B69A60" stroke-opacity=".7"/>
+  <rect x="12" y="9" width="22" height="13" rx="1.6" fill="#1A3D2A" stroke="#A8C686" stroke-width="1.1"/>
+  <circle cx="23" cy="15.5" r="2.6" fill="none" stroke="#A8C686" stroke-width=".9"/>
+  <path d="M14.5 13c1.6-1 3-1 4.4 0M27.6 18c1.6 1 3 1 4.4 0" fill="none" stroke="#A8C686" stroke-width=".6" opacity=".8"/>
+  <path d="M8 19.5h30v15.5a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2z" fill="#F0EBDD"/>
+  <path d="M8 19.5l15 9.5 15-9.5" fill="none" stroke="#214E34" stroke-width="1.1" stroke-linejoin="round"/>
+  <path d="M11.5 33h9M11.5 30.5h6" stroke="#214E34" stroke-width=".9" stroke-linecap="round" opacity=".75"/>
+  <circle cx="35" cy="34" r="7" fill="#B69A60" stroke="#E2C98A" stroke-width="1"/>
+  <circle cx="35" cy="34" r="4.6" fill="none" stroke="#7A6532" stroke-width=".9"/>
+  <path d="M35 36.6v-5M32.8 33.6l2.2-2.2 2.2 2.2" fill="none" stroke="#7A6532" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>`;
 // Ícone próprio da carteira (dinheiro em espécie): cédulas em leque com uma moeda dourada, no traço da gravura
 export const ICONE_ESPECIE = `<svg viewBox="0 0 48 48" width="100%" height="100%" aria-hidden="true">
   <defs><linearGradient id="esp-f" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2F6B45"/><stop offset="1" stop-color="#10241A"/></linearGradient></defs>
@@ -117,6 +132,7 @@ export function logoCompromisso(c) {
   if (dom) return logo(dom, c.nome);
   const foto = ax.find((a) => a.tipo === "foto");
   if (foto) return `<span class="cc-logo cc-logo-foto" style="width:36px;height:36px" aria-hidden="true"><img data-caminho="${esc(foto.caminho)}" alt=""></span>`;
+  if (c.tipo === "salario") return `<span class="cc-logo cc-logo-desenho" style="width:36px;height:36px" aria-hidden="true">${ICONE_SALARIO}</span>`;
   const ic = { salario: "briefcase", receita: "sparkles", fixo: "receipt", assinatura: "repeat2", futura: "calendar-days" }[c.tipo] || "receipt";
   return `<span class="cc-ic">${icone(ic, 18)}</span>`;
 }
