@@ -49,7 +49,7 @@ async function pluggy(path: string, apiKey: string) {
   return b;
 }
 
-// /v2/transactions usa paginação por cursor ({ results, next }).
+// /v2/transactions usa paginação por cursor ({ results, next }), 500 por página.
 async function todasTransacoes(accountId: string, apiKey: string, desde: string | null) {
   const base = `/v2/transactions?accountId=${accountId}${desde ? `&dateFrom=${desde}` : ""}`;
   const vistos = new Set<string>();
@@ -63,8 +63,9 @@ async function todasTransacoes(accountId: string, apiKey: string, desde: string 
     for (const t of b?.results ?? []) if (!vistos.has(t.id)) { vistos.add(t.id); lista.push(t); novos++; }
     const n = b?.next;
     if (!n || !novos) break;
+    // "next" vem pronto para colar depois de /v2/transactions (ex.: "?accountId=…&after=…")
     url = typeof n === "string"
-      ? (n.startsWith("http") || n.startsWith("/") ? n : `${base}&cursor=${encodeURIComponent(n)}`)
+      ? (n.startsWith("?") ? `/v2/transactions${n}` : n.startsWith("http") || n.startsWith("/") ? n : `${base}&after=${encodeURIComponent(n)}`)
       : null;
   }
   return { lista, paginas };
